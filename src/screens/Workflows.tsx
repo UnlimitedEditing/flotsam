@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Workflow } from '../api/types'
-import { formFields, wantsImage } from '../lib/command'
+import { classify } from '../lib/schema'
 import { noteRecent, toggleFavorite, usePrefs } from '../state/prefs'
 import { useWorkflows } from '../state/useWorkflows'
 
@@ -14,6 +14,16 @@ function kinds(w: Workflow): string {
   if (w.supports_vid2vid) k.push('video→video')
   if (w.supports_txt2wav) k.push('audio')
   return k.join(' · ')
+}
+
+function inputsSummary(w: Workflow): string {
+  const sc = classify(w)
+  const parts: string[] = []
+  if (sc.hasPrompt) parts.push('prompt')
+  for (const m of sc.media) parts.push(m.label.toLowerCase())
+  if (sc.size) parts.push('size')
+  for (const o of sc.options) parts.push(o.label.toLowerCase())
+  return `Inputs: ${parts.join(', ') || 'none'}`
 }
 
 export default function Workflows() {
@@ -51,15 +61,7 @@ export default function Workflows() {
       {open === w.slug && (
         <div className="wf-detail">
           {w.description && <p>{w.description}</p>}
-          <p className="muted">
-            Inputs: {wantsImage(w) ? 'image, ' : ''}prompt
-            {formFields(w).length
-              ? ', ' +
-                formFields(w)
-                  .map((f) => f.local_field)
-                  .join(', ')
-              : ''}
-          </p>
+          <p className="muted">{inputsSummary(w)}</p>
           {w.avg_elapsed ? <p className="muted">Typical run: {Math.round(w.avg_elapsed)}s</p> : null}
         </div>
       )}

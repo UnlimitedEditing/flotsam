@@ -17,6 +17,7 @@ export interface Workflow {
   image_url?: string | null
   avg_elapsed?: number | null
   is_public?: boolean
+  is_nsfw?: boolean
   field_mapping: WorkflowFieldMapping[]
   supports_txt2img: boolean
   supports_img2img: boolean
@@ -24,6 +25,8 @@ export interface Workflow {
   supports_img2vid: boolean
   supports_vid2vid: boolean
   supports_txt2wav: boolean
+  // Also present on the API (see docs/api-notes.md): supports_vid2img, supports_img2mesh, supports_txt2mesh,
+  // supports_mesh2img, supports_mesh2vid, supports_vid2wav, supports_wav2txt.
 }
 
 export interface RenderMedia {
@@ -53,4 +56,11 @@ export interface ResolvedMedia {
 export interface SourceMedia {
   initImage?: string
   initImageUrl?: string
+  initVideo?: string
+  initVideoUrl?: string
+  initAudio?: string
+  initAudioUrl?: string
+  initMeshUrl?: string
+  /** `/imageN:URLn` references in the command resolve through this map (key must look like URL<n>). */
+  placeholders?: Record<string, string>
 }

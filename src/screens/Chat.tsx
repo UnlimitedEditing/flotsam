@@ -1,13 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import JobCard from '../components/JobCard'
 import Lightbox from '../components/Lightbox'
 import { resolveImage } from '../images/resolve'
-import { InvalidImageUrlError, NeedsImageHostError, type ImageInput } from '../images/types'
+import { InvalidImageUrlError, NeedsImageHostError } from '../images/types'
 import { engine, useJobs } from '../jobs/instance'
-import { buildCommand, formFields, hasNegativeField, validateOption, wantsImage } from '../lib/command'
+import { buildRequest, emptyForm, missingRequired, unsupportedSlots, type FormValues } from '../lib/command'
+import { classify, validateNumber, type MediaSlot } from '../lib/schema'
 import { noteRecent, usePrefs } from '../state/prefs'
 import { useWorkflows } from '../state/useWorkflows'
+
+const PRESETS: Array<[number, number]> = [
+  [512, 512],
+  [768, 768],
+  [1024, 1024],
+  [1024, 576],
+  [576, 1024],
+  [1280, 720],
+  [720, 1280],
+]
 
 export default function Chat() {
   const jobs = useJobs()
@@ -15,18 +26,19 @@ export default function Chat() {
   const prefs = usePrefs()
   const [params] = useSearchParams()
   const location = useLocation()
-  const navigate = useNavigate()
 
   const slug = params.get('wf') ?? prefs.lastWorkflow ?? ''
   const workflow = useMemo(() => workflows.find((w) => w.slug === slug), [workflows, slug])
+  const schema = useMemo(() => (workflow ? classify(workflow) : null), [workflow])
 
-  const [prompt, setPrompt] = useState('')
-  const [negative, setNegative] = useState('')
-  const [optionsBySlug, setOptionsBySlug] = useState<Record<string, Record<string, string>>>({})
-  const options = optionsBySlug[slug] ?? {}
+  const [formBySlug, setFormBySlug] = useState<Record<string, FormValues>>({})
+  const form = formBySlug[slug] ?? emptyForm()
+  const setForm = (patch: Partial<FormValues>) =>
+    setFormBySlug({ ...formBySlug, [slug]: { ...form, ...patch } })
+
+  const handedImage = (location.state as { imageUrl?: string } | null)?.imageUrl
   const [showOptions, setShowOptions] = useState(false)
-  const [imageUrl, setImageUrl] = useState((location.state as { imageUrl?: string } | null)?.imageUrl ?? '')
-  const [showPrev, setShowPrev] = useState(false)
+  const [pickerSlot, setPickerSlot] = useState<string | null>(null)
   const [err, setErr] = useState('')
   const [lb, setLb] = useState<{ jobId: string; index: number } | null>(null)
   const endRef = useRef<HTMLDivElement>(null)
@@ -36,60 +48,77 @@ export default function Chat() {
     endRef.current?.scrollIntoView({ block: 'end' })
   }, [timeline.length])
 
+  // "Use as input" hands over one image URL; it fills the first image slot until the user edits that slot.
+  const firstImageSlot = schema?.media.find((m) => m.kind === 'image' && m.via !== 'unsupported')
+  const [pendingImage, setPendingImage] = useState(handedImage ?? '')
+  const mediaValue = (slotId: string) =>
+    form.media[slotId] ?? (slotId === firstImageSlot?.id ? pendingImage : '')
+
   const previous = useMemo(
     () =>
       jobs.flatMap((j) => j.media.filter((m) => !/\.(mp4|webm|mov|mp3|wav)(\?|$)/i.test(m.url))).slice(0, 12),
     [jobs],
   )
 
-  const fields = workflow ? formFields(workflow) : []
-  const fieldErrors = Object.fromEntries(
-    fields.map((f) => [f.local_field, validateOption(f, options[f.local_field] ?? '')]),
-  )
-  const invalid = Object.values(fieldErrors).some(Boolean)
-  const needsImage = workflow ? wantsImage(workflow) : false
+  const numericErrors: Record<string, string | null> = {}
+  if (schema) {
+    for (const o of schema.options) {
+      numericErrors[o.field] = o.numeric ? validateNumber(form.options[o.field] ?? '', o.min, o.max) : null
+    }
+    if (schema.size?.mode === 'wh') {
+      numericErrors.width = validateNumber(form.width, schema.size.min, schema.size.max)
+      numericErrors.height = validateNumber(form.height, schema.size.min, schema.size.max)
+    }
+  }
+  const invalid = Object.values(numericErrors).some(Boolean)
+  const effectiveForm: FormValues = {
+    ...form,
+    media: {
+      ...form.media,
+      ...(firstImageSlot ? { [firstImageSlot.id]: mediaValue(firstImageSlot.id) } : {}),
+    },
+  }
+  const missing = schema ? missingRequired(schema, effectiveForm) : []
 
-  async function onFile(file: File | undefined) {
+  async function onFile(slot: MediaSlot, file: File | undefined) {
     if (!file) return
     setErr('')
     try {
-      const input: ImageInput = { kind: 'file', blob: file, name: file.name }
-      setImageUrl(await resolveImage(input)) // no image host is configured yet
+      // An image host arrives with Settings; until one is configured this explains what to do.
+      const url = await resolveImage({ kind: 'file', blob: file, name: file.name })
+      setForm({ media: { ...form.media, [slot.id]: url } })
     } catch (e) {
       setErr(e instanceof NeedsImageHostError ? e.message : (e as Error).message)
     }
   }
 
   async function send() {
-    if (!workflow) return
+    if (!workflow || !schema) return
     setErr('')
-    let url: string | undefined
-    if (imageUrl.trim()) {
-      try {
-        url = await resolveImage({ kind: 'url', url: imageUrl })
-      } catch (e) {
-        setErr(e instanceof InvalidImageUrlError ? e.message : (e as Error).message)
-        return
+    const media: Record<string, string> = {}
+    try {
+      for (const [id, url] of Object.entries(effectiveForm.media)) {
+        if (url.trim()) media[id] = await resolveImage({ kind: 'url', url })
       }
+    } catch (e) {
+      setErr(e instanceof InvalidImageUrlError ? e.message : (e as Error).message)
+      return
     }
-    const command = buildCommand({
-      workflowSlug: workflow.slug,
-      prompt,
-      negative: hasNegativeField(workflow) ? negative : undefined,
-      options,
-    })
+    const { command, source } = buildRequest(workflow, schema, { ...form, media })
     noteRecent(workflow.slug)
     await engine.enqueue({
       workflowSlug: workflow.slug,
       workflowName: workflow.name,
-      prompt: prompt.trim(),
+      prompt: form.prompt.trim(),
       command,
-      imageUrl: url,
+      imageUrl: source.initImageUrl ?? Object.values(source.placeholders ?? {})[0],
+      source,
     })
-    setPrompt('')
+    setForm({ prompt: '' })
   }
 
   const lbJob = lb ? jobs.find((j) => j.id === lb.jobId) : undefined
+  const optionPanel = !!schema && (schema.options.length > 0 || !!schema.size || !!schema.negativeField)
 
   return (
     <main className="chat">
@@ -108,105 +137,183 @@ export default function Chat() {
           <Link to="/workflows" className="chip">
             {workflow ? workflow.name : slug ? `${slug} (loading…)` : 'Choose a workflow'}
           </Link>
-          {workflow && (fields.length > 0 || hasNegativeField(workflow)) && (
+          {optionPanel && (
             <button className="ghost small" onClick={() => setShowOptions(!showOptions)}>
               {showOptions ? 'Hide options' : 'Options'}
             </button>
           )}
         </div>
 
-        {needsImage && (
-          <div className="image-box">
-            <input
-              type="url"
-              inputMode="url"
-              placeholder="Input image URL"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-            />
-            <div className="row">
-              <button
-                className="ghost small"
-                onClick={() => setShowPrev(!showPrev)}
-                disabled={previous.length === 0}
-              >
-                Previous results
-              </button>
-              <label className="ghost small filebtn">
-                Photo
-                <input
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={(e) => void onFile(e.target.files?.[0])}
-                />
-              </label>
-            </div>
-            {showPrev && (
-              <div className="strip">
-                {previous.map((m) => (
+        {schema?.media
+          .filter((s) => s.via !== 'unsupported')
+          .map((slot) => (
+            <div className="image-box" key={slot.id}>
+              <input
+                type="url"
+                inputMode="url"
+                placeholder={`${slot.label}${slot.required ? '' : ' (optional)'} URL`}
+                value={mediaValue(slot.id)}
+                onChange={(e) => setForm({ media: { ...form.media, [slot.id]: e.target.value } })}
+              />
+              {slot.kind === 'image' && (
+                <div className="row">
                   <button
-                    key={m.url}
-                    type="button"
-                    className="strip-item"
-                    onClick={() => {
-                      setImageUrl(m.url)
-                      setShowPrev(false)
-                    }}
+                    className="ghost small"
+                    onClick={() => setPickerSlot(pickerSlot === slot.id ? null : slot.id)}
+                    disabled={previous.length === 0}
                   >
-                    <img src={m.url} alt="" loading="lazy" className={prefs.blurNsfw ? 'blurred-img' : ''} />
+                    Previous results
                   </button>
-                ))}
-              </div>
-            )}
-          </div>
+                  <label className="ghost small filebtn">
+                    Photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      onChange={(e) => void onFile(slot, e.target.files?.[0])}
+                    />
+                  </label>
+                </div>
+              )}
+              {pickerSlot === slot.id && (
+                <div className="strip">
+                  {previous.map((m) => (
+                    <button
+                      key={m.url}
+                      type="button"
+                      className="strip-item"
+                      onClick={() => {
+                        setForm({ media: { ...form.media, [slot.id]: m.url } })
+                        setPickerSlot(null)
+                      }}
+                    >
+                      <img
+                        src={m.url}
+                        alt=""
+                        loading="lazy"
+                        className={prefs.blurNsfw ? 'blurred-img' : ''}
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+
+        {schema && unsupportedSlots(schema).length > 0 && (
+          <p className="muted small-note">
+            This workflow also takes{' '}
+            {unsupportedSlots(schema)
+              .map((s) => s.label)
+              .join(', ')}
+            , which Flotsam can&apos;t send yet.
+          </p>
         )}
 
-        {showOptions && workflow && (
+        {showOptions && schema && (
           <div className="options">
-            {hasNegativeField(workflow) && (
+            {schema.size?.mode === 'wh' && (
+              <div className="size">
+                <span>
+                  Size{' '}
+                  <span className="muted">
+                    {schema.size.min ?? ''}–{schema.size.max ?? ''}, default {schema.size.defaultW}×
+                    {schema.size.defaultH}
+                  </span>
+                </span>
+                <div className="row">
+                  <input
+                    inputMode="numeric"
+                    placeholder={String(schema.size.defaultW ?? 'width')}
+                    value={form.width}
+                    onChange={(e) => setForm({ width: e.target.value })}
+                    aria-label="Width"
+                  />
+                  <span>×</span>
+                  <input
+                    inputMode="numeric"
+                    placeholder={String(schema.size.defaultH ?? 'height')}
+                    value={form.height}
+                    onChange={(e) => setForm({ height: e.target.value })}
+                    aria-label="Height"
+                  />
+                </div>
+                <div className="presets">
+                  {PRESETS.filter(
+                    ([w, h]) =>
+                      (schema.size!.min == null || Math.min(w, h) >= schema.size!.min) &&
+                      (schema.size!.max == null || Math.max(w, h) <= schema.size!.max),
+                  ).map(([w, h]) => (
+                    <button
+                      key={`${w}x${h}`}
+                      type="button"
+                      className="ghost small"
+                      onClick={() => setForm({ width: String(w), height: String(h) })}
+                    >
+                      {w}×{h}
+                    </button>
+                  ))}
+                </div>
+                {(numericErrors.width || numericErrors.height) && (
+                  <span className="error">{numericErrors.width ?? numericErrors.height}</span>
+                )}
+              </div>
+            )}
+            {schema.size?.mode === 'size' && (
+              <label>
+                <span>Size</span>
+                <input
+                  placeholder="e.g. 1024x1024"
+                  value={form.sizeText}
+                  onChange={(e) => setForm({ sizeText: e.target.value })}
+                />
+              </label>
+            )}
+            {schema.negativeField && (
               <input
                 placeholder="Negative prompt"
-                value={negative}
-                onChange={(e) => setNegative(e.target.value)}
+                value={form.negative}
+                onChange={(e) => setForm({ negative: e.target.value })}
               />
             )}
-            {fields.map((f) => (
-              <label key={f.local_field}>
+            {schema.options.map((o) => (
+              <label key={o.field}>
                 <span>
-                  {f.local_field}
-                  {f.help_text ? <span className="muted"> {f.help_text}</span> : null}
+                  {o.label}
+                  {o.help ? <span className="muted"> {o.help}</span> : null}
+                  {o.min != null || o.max != null ? (
+                    <span className="muted">
+                      {' '}
+                      ({o.min ?? ''}–{o.max ?? ''})
+                    </span>
+                  ) : null}
                 </span>
                 <input
-                  inputMode="decimal"
-                  placeholder={f.default_value != null ? String(f.default_value) : ''}
-                  value={options[f.local_field] ?? ''}
-                  onChange={(e) =>
-                    setOptionsBySlug({
-                      ...optionsBySlug,
-                      [slug]: { ...options, [f.local_field]: e.target.value },
-                    })
-                  }
+                  inputMode={o.numeric ? 'decimal' : 'text'}
+                  placeholder={o.def}
+                  value={form.options[o.field] ?? ''}
+                  onChange={(e) => setForm({ options: { ...form.options, [o.field]: e.target.value } })}
                 />
-                {fieldErrors[f.local_field] && <span className="error">{fieldErrors[f.local_field]}</span>}
+                {o.note && <span className="muted">{o.note}</span>}
+                {numericErrors[o.field] && <span className="error">{numericErrors[o.field]}</span>}
               </label>
             ))}
           </div>
         )}
 
         {err && <p className="error">{err}</p>}
+        {missing.length > 0 && (
+          <p className="muted small-note">Needs: {missing.map((m) => m.label).join(', ')}</p>
+        )}
         <div className="send">
           <textarea
             rows={2}
             placeholder={workflow ? 'Prompt' : 'Choose a workflow first'}
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
+            value={form.prompt}
+            onChange={(e) => setForm({ prompt: e.target.value })}
             disabled={!workflow}
           />
-          <button
-            onClick={() => void send()}
-            disabled={!workflow || invalid || (needsImage && !imageUrl.trim() && workflow?.supports_img2vid)}
-          >
+          <button onClick={() => void send()} disabled={!workflow || invalid || missing.length > 0}>
             Send
           </button>
         </div>
@@ -218,9 +325,9 @@ export default function Chat() {
           index={lb.index}
           onClose={() => setLb(null)}
           onUseAsInput={(url) => {
-            setImageUrl(url)
             setLb(null)
-            navigate('/', { state: { imageUrl: url }, replace: true })
+            setPendingImage(url)
+            if (firstImageSlot) setForm({ media: { ...form.media, [firstImageSlot.id]: url } })
           }}
         />
       )}

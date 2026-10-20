@@ -1,68 +1,102 @@
-import type { Workflow, WorkflowFieldMapping } from '../api/types'
+import type { SourceMedia, Workflow } from '../api/types'
+import type { MediaSlot, Schema } from './schema'
 
-// Fields the form renders as inputs. Everything else in field_mapping (prompt_positive, init_*_url,
-// node plumbing) is handled by the command itself or by the image picker.
-const OPTION_FIELDS = new Set([
-  'seed',
-  'steps',
-  'guidance',
-  'length',
-  'fps',
-  'slot1',
-  'slot2',
-  'slot3',
-  'slot4',
-  'slot5',
-  'slot6',
-  'slot7',
-  'slot8',
-])
-const IMAGE_FIELDS = /^(init_image|image\d*|init_image_url)/
-
-export function formFields(w: Workflow): WorkflowFieldMapping[] {
-  return (w.field_mapping ?? []).filter((f) => OPTION_FIELDS.has(f.local_field))
-}
-
-export function hasNegativeField(w: Workflow): boolean {
-  return (w.field_mapping ?? []).some((f) => f.local_field === 'negative_prompt')
-}
-
-export function wantsImage(w: Workflow): boolean {
-  return (
-    w.supports_img2img ||
-    w.supports_img2vid ||
-    w.supports_vid2vid ||
-    (w.field_mapping ?? []).some((f) => IMAGE_FIELDS.test(f.local_field))
-  )
-}
-
-export interface CommandInput {
-  workflowSlug: string
+export interface FormValues {
   prompt: string
-  negative?: string
-  /** local_field -> raw value as typed. Blank values are omitted so workflow defaults apply. */
-  options?: Record<string, string>
+  negative: string
+  options: Record<string, string> // by local_field; blank = workflow default
+  width: string
+  height: string
+  sizeText: string // for workflows that map a single `size` field
+  media: Record<string, string> // slot id -> URL
 }
 
-/** Builds Graydient's slash-command string: `/workflow /run:<slug> /key:value ... <prompt> [<negative>]`. */
-export function buildCommand(c: CommandInput): string {
-  const opts = Object.entries(c.options ?? {})
-    .map(([k, v]) => [k, v.trim()] as const)
-    .filter(([, v]) => v !== '')
-    .map(([k, v]) => `/${k}:${v}`)
-  const parts = ['/workflow', `/run:${c.workflowSlug}`, ...opts, c.prompt.trim()]
-  const neg = c.negative?.trim()
-  if (neg) parts.push(`[${neg}]`)
-  return parts.filter(Boolean).join(' ')
+export const emptyForm = (): FormValues => ({
+  prompt: '',
+  negative: '',
+  options: {},
+  width: '',
+  height: '',
+  sizeText: '',
+  media: {},
+})
+
+const num = (s: string): number | null => (s.trim() !== '' && !Number.isNaN(Number(s)) ? Number(s) : null)
+
+/** `/size:WxH` (verified: Graydient rejects /width: and /height:). Only sent when it differs from the defaults. */
+export function sizeToken(schema: Schema, v: FormValues): string | null {
+  const s = schema.size
+  if (!s) return null
+  if (s.mode === 'size') return v.sizeText.trim() ? `/size:${v.sizeText.trim()}` : null
+  const w = num(v.width)
+  const h = num(v.height)
+  if (w == null && h == null) return null
+  const fw = w ?? s.defaultW
+  const fh = h ?? s.defaultH
+  if (fw == null || fh == null) return null
+  if (fw === s.defaultW && fh === s.defaultH) return null
+  return `/size:${fw}x${fh}`
 }
 
-/** Returns an error message, or null if the value fits the field's declared range. */
-export function validateOption(f: WorkflowFieldMapping, raw: string): string | null {
-  const v = raw.trim()
-  if (v === '') return null
-  const n = Number(v)
-  if (Number.isNaN(n)) return 'Must be a number'
-  if (f.minimum_value != null && n < f.minimum_value) return `Min ${f.minimum_value}`
-  if (f.maximum_value != null && n > f.maximum_value) return `Max ${f.maximum_value}`
-  return null
+export interface Request {
+  command: string
+  source: SourceMedia
+}
+
+/** Builds Graydient's slash-command string plus the media fields that ride alongside it. */
+export function buildRequest(w: Workflow, schema: Schema, v: FormValues): Request {
+  const parts = ['/workflow', `/run:${w.slug}`]
+  for (const o of schema.options) {
+    const val = (v.options[o.field] ?? '').trim()
+    if (val !== '') parts.push(`/${o.key}:${val}`)
+  }
+  const size = sizeToken(schema, v)
+  if (size) parts.push(size)
+
+  const source: SourceMedia = {}
+  const placeholders: Record<string, string> = {}
+  for (const slot of schema.media) {
+    const url = (v.media[slot.id] ?? '').trim()
+    if (!url) continue
+    applySlot(slot, url, source, placeholders, parts)
+  }
+  if (Object.keys(placeholders).length) source.placeholders = placeholders
+
+  if (v.prompt.trim()) parts.push(v.prompt.trim())
+  if (schema.negativeField && v.negative.trim()) parts.push(`[${v.negative.trim()}]`)
+  return { command: parts.join(' '), source }
+}
+
+function applySlot(
+  slot: MediaSlot,
+  url: string,
+  source: SourceMedia,
+  placeholders: Record<string, string>,
+  parts: string[],
+): void {
+  if (slot.via === 'placeholder' && slot.n != null) {
+    // Verified: the placeholder key must look like URL<n>; arbitrary names are rejected by the server.
+    parts.push(`/image${slot.n}:URL${slot.n}`)
+    placeholders[`URL${slot.n}`] = url
+  } else if (slot.id === 'init_image') {
+    source.initImage = url
+    source.initImageUrl = url
+  } else if (slot.id === 'init_video') {
+    source.initVideoUrl = url
+    source.initVideo = url
+  } else if (slot.id === 'init_audio') {
+    source.initAudioUrl = url
+    source.initAudio = url
+  } else if (slot.id === 'init_mesh') {
+    source.initMeshUrl = url
+  }
+}
+
+/** Slots Flotsam cannot deliver yet, so the form can say so instead of silently dropping them. */
+export function unsupportedSlots(schema: Schema): MediaSlot[] {
+  return schema.media.filter((s) => s.via === 'unsupported')
+}
+
+export function missingRequired(schema: Schema, v: FormValues): MediaSlot[] {
+  return schema.media.filter((s) => s.required && s.via !== 'unsupported' && !(v.media[s.id] ?? '').trim())
 }

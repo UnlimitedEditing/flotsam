@@ -1,4 +1,4 @@
-import type { ResolvedMedia } from '../api/types'
+import type { ResolvedMedia, SourceMedia } from '../api/types'
 
 export type JobStatus = 'queued' | 'submitting' | 'running' | 'done' | 'failed' | 'canceled'
 
@@ -11,7 +11,8 @@ export interface Job {
   workflowName: string
   prompt: string // user-visible text
   command: string // full slash-command string actually sent
-  imageUrl?: string
+  imageUrl?: string // preview of the main input image
+  source?: SourceMedia // everything sent alongside the command (init media, placeholders)
   status: JobStatus
   renderHash?: string
   estimatedRenderTime?: number | null
@@ -20,7 +21,7 @@ export interface Job {
   error?: string
 }
 
-export type NewJob = Pick<Job, 'workflowSlug' | 'workflowName' | 'prompt' | 'command' | 'imageUrl'>
+export type NewJob = Pick<Job, 'workflowSlug' | 'workflowName' | 'prompt' | 'command' | 'imageUrl' | 'source'>
 
 export const ACTIVE: JobStatus[] = ['submitting', 'running']
 export const isFinished = (s: JobStatus) => s === 'done' || s === 'failed' || s === 'canceled'

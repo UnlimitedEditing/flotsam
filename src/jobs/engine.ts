@@ -96,6 +96,7 @@ export class JobEngine {
       prompt: j.prompt,
       command: j.command,
       imageUrl: j.imageUrl,
+      source: j.source,
     })
   }
 
@@ -160,7 +161,8 @@ export class JobEngine {
     const id = job.id
     this.patch(id, { status: 'submitting' })
     try {
-      const sourceMedia = job.imageUrl ? { initImage: job.imageUrl, initImageUrl: job.imageUrl } : undefined
+      const sourceMedia =
+        job.source ?? (job.imageUrl ? { initImage: job.imageUrl, initImageUrl: job.imageUrl } : undefined)
       const submitted = await this.api.submitRender(job.command, {
         sourceMedia,
         signal,

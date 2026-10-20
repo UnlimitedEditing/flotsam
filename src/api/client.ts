@@ -131,11 +131,18 @@ export async function submitRender(
     task: 'workflow',
     progressive_return: true,
     stream: true,
-    placeholders: {},
+    placeholders: opts.sourceMedia?.placeholders ?? {},
     session_id: `flotsam-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   }
-  if (opts.sourceMedia?.initImage) body.init_image = opts.sourceMedia.initImage
-  if (opts.sourceMedia?.initImageUrl) body.init_image_url = opts.sourceMedia.initImageUrl
+  // Same key set the CLI sends (applySourceMediaFields). Which key a given workflow reads varies, so set all.
+  const s = opts.sourceMedia
+  if (s?.initImage) body.init_image = s.initImage
+  if (s?.initImageUrl) body.init_image_url = s.initImageUrl
+  if (s?.initVideo) body.init_video = s.initVideo
+  if (s?.initVideoUrl) body.init_video_url = s.initVideoUrl
+  if (s?.initAudio) body.init_audio = s.initAudio
+  if (s?.initAudioUrl) body.init_audio_url = s.initAudioUrl
+  if (s?.initMeshUrl) body.init_mesh_url = s.initMeshUrl
 
   const res = await request('render/', {
     method: 'POST',

@@ -1,62 +1,129 @@
 import { describe, expect, it } from 'vitest'
-import type { Workflow } from '../api/types'
-import { buildCommand, formFields, validateOption, wantsImage } from './command'
+import { buildRequest, emptyForm, missingRequired, sizeToken, unsupportedSlots } from './command'
+import { classify, hasResolution, outputKinds, validateNumber } from './schema'
+import { img2img, meshFlow, mossTurbo, multiRef, sizeText, video } from './fixtures'
 
-const wf = (over: Partial<Workflow> = {}): Workflow =>
-  ({
-    id: '1',
-    slug: 's',
-    name: 'S',
-    description: '',
-    field_mapping: [],
-    supports_txt2img: true,
-    supports_img2img: false,
-    supports_txt2vid: false,
-    supports_img2vid: false,
-    supports_vid2vid: false,
-    supports_txt2wav: false,
-    ...over,
-  }) as Workflow
-
-describe('buildCommand', () => {
-  it('assembles run, options, prompt and negative', () => {
-    expect(
-      buildCommand({
-        workflowSlug: 'flux',
-        prompt: ' a cat ',
-        negative: 'blurry',
-        options: { seed: '7', steps: '' },
-      }),
-    ).toBe('/workflow /run:flux /seed:7 a cat [blurry]')
+describe('classify', () => {
+  it('gives moss-turbo a size control and its real options, with no media', () => {
+    const s = classify(mossTurbo)
+    expect(s.size).toEqual({ mode: 'wh', min: 512, max: 1536, defaultW: 1024, defaultH: 1024 })
+    expect(s.negativeField).toBe('prompt_negative')
+    expect(s.media).toEqual([])
+    expect(s.options.map((o) => o.field)).toEqual([
+      'seed',
+      'steps',
+      'sampler',
+      'scheduler',
+      'slot1',
+      'slot2',
+      'guidance',
+    ])
+    expect(s.options.find((o) => o.field === 'sampler')).toMatchObject({ numeric: false, def: 'er_sde' })
+    expect(s.options.find((o) => o.field === 'steps')).toMatchObject({ numeric: true, min: 4, max: 25 })
   })
-  it('works with only a slug', () => {
-    expect(buildCommand({ workflowSlug: 'x', prompt: '' })).toBe('/workflow /run:x')
+
+  it('treats an img2img workflow as needing an input image', () => {
+    const s = classify(img2img)
+    expect(s.media).toEqual([expect.objectContaining({ id: 'init_image', via: 'init', required: true })])
+    expect(s.options.map((o) => o.field)).toEqual(['strength'])
+  })
+
+  it('creates one slot per referenced image and leaves them optional when text input also works', () => {
+    const s = classify(multiRef)
+    expect(s.media.map((m) => [m.id, m.via, m.required])).toEqual([
+      ['image1', 'placeholder', false],
+      ['image2', 'placeholder', false],
+    ])
+    expect(s.options.find((o) => o.field === 'num_images')).toMatchObject({ key: 'images', label: 'Images' })
+  })
+
+  it('collapses init_image_* variants into one slot and handles video outputs', () => {
+    const s = classify(video)
+    expect(s.media.map((m) => m.id)).toEqual(['init_image'])
+    expect(s.outputs).toEqual(['video'])
+    expect(s.size).toBeDefined()
+  })
+
+  it('hides resolution for mesh-only workflows even if they map width/height', () => {
+    const s = classify(meshFlow)
+    expect(outputKinds(meshFlow)).toEqual(['mesh'])
+    expect(hasResolution(s.outputs)).toBe(false)
+    expect(s.size).toBeUndefined()
+    expect(s.options.find((o) => o.field === 'slot9')?.note).toMatch(/may not/)
+  })
+
+  it('supports a single `size` field', () => {
+    expect(classify(sizeText).size).toMatchObject({ mode: 'size' })
   })
 })
 
-describe('formFields / wantsImage', () => {
-  it('keeps only option fields', () => {
-    const w = wf({
-      field_mapping: [
-        { local_field: 'prompt_positive' },
-        { local_field: 'seed' },
-        { local_field: 'slot1' },
-        { local_field: 'init_image_url' },
-      ] as Workflow['field_mapping'],
+describe('buildRequest', () => {
+  const sc = classify(mossTurbo)
+  it('omits blanks and the default size', () => {
+    const r = buildRequest(mossTurbo, sc, {
+      ...emptyForm(),
+      prompt: ' a cat ',
+      negative: 'blurry',
+      options: { seed: '7', steps: '' },
     })
-    expect(formFields(w).map((f) => f.local_field)).toEqual(['seed', 'slot1'])
-    expect(wantsImage(w)).toBe(true)
-    expect(wantsImage(wf())).toBe(false)
+    expect(r.command).toBe('/workflow /run:moss-turbo /seed:7 a cat [blurry]')
+  })
+
+  it('sends /size:WxH when changed, filling the other side from the default', () => {
+    expect(sizeToken(sc, { ...emptyForm(), width: '1280' })).toBe('/size:1280x1024')
+    expect(sizeToken(sc, { ...emptyForm(), width: '1024', height: '1024' })).toBeNull()
+    expect(sizeToken(sc, emptyForm())).toBeNull()
+    const r = buildRequest(mossTurbo, sc, { ...emptyForm(), width: '768', height: '1152', prompt: 'x' })
+    expect(r.command).toBe('/workflow /run:moss-turbo /size:768x1152 x')
+  })
+
+  it('sends a single size string', () => {
+    expect(
+      buildRequest(sizeText, classify(sizeText), { ...emptyForm(), sizeText: '640x640', prompt: 'p' })
+        .command,
+    ).toBe('/workflow /run:size-text /size:640x640 p')
+  })
+
+  it('routes imageN through URL<n> placeholders and init media through source fields', () => {
+    const m = buildRequest(multiRef, classify(multiRef), {
+      ...emptyForm(),
+      prompt: 'two refs',
+      media: { image1: 'https://x/a.png', image2: 'https://x/b.png' },
+    })
+    expect(m.command).toBe('/workflow /run:multiref /image1:URL1 /image2:URL2 two refs')
+    expect(m.source.placeholders).toEqual({ URL1: 'https://x/a.png', URL2: 'https://x/b.png' })
+
+    const i = buildRequest(img2img, classify(img2img), {
+      ...emptyForm(),
+      prompt: 'edit',
+      media: { init_image: 'https://x/c.png' },
+    })
+    expect(i.source).toMatchObject({ initImage: 'https://x/c.png', initImageUrl: 'https://x/c.png' })
+    expect(i.source.placeholders).toBeUndefined()
+  })
+
+  it('renames num_images to /images:', () => {
+    expect(
+      buildRequest(multiRef, classify(multiRef), { ...emptyForm(), options: { num_images: '3' } }).command,
+    ).toContain('/images:3')
   })
 })
 
-describe('validateOption', () => {
-  const f = { local_field: 'steps', minimum_value: 1, maximum_value: 50 } as Workflow['field_mapping'][number]
+describe('required and unsupported inputs', () => {
+  it('reports a missing required image and clears it once supplied', () => {
+    const sc = classify(img2img)
+    expect(missingRequired(sc, emptyForm()).map((s) => s.id)).toEqual(['init_image'])
+    expect(missingRequired(sc, { ...emptyForm(), media: { init_image: 'https://x/a.png' } })).toEqual([])
+    expect(unsupportedSlots(sc)).toEqual([])
+  })
+})
+
+describe('validateNumber', () => {
   it('checks number and range, allows blank', () => {
-    expect(validateOption(f, '')).toBeNull()
-    expect(validateOption(f, '20')).toBeNull()
-    expect(validateOption(f, 'x')).toBe('Must be a number')
-    expect(validateOption(f, '0')).toBe('Min 1')
-    expect(validateOption(f, '99')).toBe('Max 50')
+    expect(validateNumber('', 1, 5)).toBeNull()
+    expect(validateNumber('3', 1, 5)).toBeNull()
+    expect(validateNumber('x', 1, 5)).toBe('Must be a number')
+    expect(validateNumber('0', 1, 5)).toBe('Min 1')
+    expect(validateNumber('9', 1, 5)).toBe('Max 5')
   })
 })
