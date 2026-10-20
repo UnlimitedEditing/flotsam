@@ -1,79 +1,55 @@
 import { useState } from 'react'
-import { fetchWorkflows } from './api/client'
-import { clearApiKey, getApiKey, setApiKey } from './api/storage'
-import type { Workflow } from './api/types'
+import { HashRouter, NavLink, Route, Routes } from 'react-router-dom'
+import { getApiKey } from './api/storage'
+import Chat from './screens/Chat'
+import Gallery from './screens/Gallery'
+import Login from './screens/Login'
+import Queue from './screens/Queue'
+import Settings from './screens/Settings'
+import Workflows from './screens/Workflows'
+import { useJobs } from './jobs/instance'
+import { isFinished } from './jobs/types'
+import './state/prefs' // starts loading saved preferences and applies the theme
+
+function TabBar() {
+  const active = useJobs().filter((j) => !isFinished(j.status)).length
+  const tabs: Array<[string, string]> = [
+    ['/', 'Chat'],
+    ['/workflows', 'Workflows'],
+    ['/queue', active ? `Queue (${active})` : 'Queue'],
+    ['/gallery', 'Gallery'],
+    ['/settings', 'Settings'],
+  ]
+  return (
+    <nav className="tabs">
+      {tabs.map(([to, label]) => (
+        <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive ? 'on' : '')}>
+          {label}
+        </NavLink>
+      ))}
+    </nav>
+  )
+}
 
 export default function App() {
-  const [key, setKey] = useState(getApiKey())
-  const [input, setInput] = useState('')
-  const [workflows, setWorkflows] = useState<Workflow[] | null>(null)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [signedIn, setSignedIn] = useState(!!getApiKey())
 
-  async function load() {
-    setLoading(true)
-    setError('')
-    try {
-      setWorkflows(await fetchWorkflows())
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  if (!key) {
-    return (
-      <main>
-        <h1>Flotsam</h1>
-        <p className="muted">An independent client for your Graydient account.</p>
-        <input
-          type="password"
-          placeholder="API key"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          autoComplete="off"
-        />
-        <button
-          disabled={!input.trim()}
-          onClick={() => {
-            setApiKey(input.trim())
-            setKey(input.trim())
-          }}
-        >
-          Save key
-        </button>
-      </main>
-    )
-  }
+  if (!signedIn) return <Login onDone={() => setSignedIn(true)} />
 
   return (
-    <main>
-      <h1>Flotsam</h1>
-      <div className="row">
-        <button onClick={load} disabled={loading}>
-          {loading ? 'Loading…' : 'List workflows'}
-        </button>
-        <button
-          className="ghost"
-          onClick={() => {
-            clearApiKey()
-            setKey('')
-            setWorkflows(null)
-          }}
-        >
-          Sign out
-        </button>
+    <HashRouter>
+      <div className="shell">
+        <div className="view">
+          <Routes>
+            <Route path="/" element={<Chat />} />
+            <Route path="/workflows" element={<Workflows />} />
+            <Route path="/queue" element={<Queue />} />
+            <Route path="/gallery" element={<Gallery />} />
+            <Route path="/settings" element={<Settings onSignOut={() => setSignedIn(false)} />} />
+          </Routes>
+        </div>
+        <TabBar />
       </div>
-      {error && <p className="error">{error}</p>}
-      {workflows && <p className="muted">{workflows.length} workflows</p>}
-      <ul>
-        {workflows?.map((w) => (
-          <li key={w.id}>
-            <strong>{w.name}</strong> <span className="muted">{w.slug}</span>
-          </li>
-        ))}
-      </ul>
-    </main>
+    </HashRouter>
   )
 }

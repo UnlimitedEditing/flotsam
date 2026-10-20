@@ -31,3 +31,10 @@ Known behaviour
 
 ## Dev gotcha: Node TLS
 Node could not verify the `app.graydient.ai` certificate chain ("unable to verify the first certificate", the server likely omits its intermediate). `npm run dev` therefore starts Vite with `node --use-system-ca`, which uses the Windows certificate store. Without it the dev proxy returns 502.
+
+## Phase 1 notes
+- Command format sent to `POST render/`: `/workflow /run:<slug> /<field>:<value> ... <prompt> [<negative>]` (see `src/lib/command.ts`).
+- Pagination: `fetchWorkflows` follows `links.next`. The real response shape is **unconfirmed**; the first page returned exactly 500, so run Settings > "Probe workflows API shape" (dev only) and record the output here.
+- Job history, favorites, recents and prefs are stored in IndexedDB (URLs/metadata only, never media bytes).
+- Images: Graydient only accepts URLs. Local photos need an ImageHost (none configured), so the Chat "Photo" button explains this; pasted URLs and previous results work.
+- Gallery "Remove" deletes from this device only (no known server-side delete).

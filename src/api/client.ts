@@ -44,7 +44,7 @@ async function request(path: string, init: RequestInit = {}): Promise<Response> 
   return res
 }
 
-async function get<T>(path: string): Promise<T> {
+export async function get<T>(path: string): Promise<T> {
   return (await (await request(path)).json()) as T
 }
 
