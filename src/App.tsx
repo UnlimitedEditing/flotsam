@@ -3,6 +3,7 @@ import { HashRouter, NavLink, Route, Routes } from 'react-router-dom'
 import { getApiKey } from './api/storage'
 import Chat from './screens/Chat'
 import Gallery from './screens/Gallery'
+import Gate from './screens/Gate'
 import Login from './screens/Login'
 import Queue from './screens/Queue'
 import Settings from './screens/Settings'
@@ -10,7 +11,8 @@ import Workflows from './screens/Workflows'
 import { OfflineBanner, UpdateBanner } from './components/Banners'
 import { useJobs } from './jobs/instance'
 import { isFinished } from './jobs/types'
-import './state/prefs' // starts loading saved preferences and applies the theme
+import { useBootstrapReady } from './state/bootstrap'
+import { useConsentValid } from './state/consent'
 
 function TabBar() {
   const active = useJobs().filter((j) => !isFinished(j.status)).length
@@ -32,11 +34,7 @@ function TabBar() {
   )
 }
 
-export default function App() {
-  const [signedIn, setSignedIn] = useState(!!getApiKey())
-
-  if (!signedIn) return <Login onDone={() => setSignedIn(true)} />
-
+function Shell({ onSignOut }: { onSignOut: () => void }) {
   return (
     <HashRouter>
       <div className="shell">
@@ -48,11 +46,24 @@ export default function App() {
             <Route path="/workflows" element={<Workflows />} />
             <Route path="/queue" element={<Queue />} />
             <Route path="/gallery" element={<Gallery />} />
-            <Route path="/settings" element={<Settings onSignOut={() => setSignedIn(false)} />} />
+            <Route path="/settings" element={<Settings onSignOut={onSignOut} />} />
           </Routes>
         </div>
         <TabBar />
       </div>
     </HashRouter>
   )
+}
+
+export default function App() {
+  const ready = useBootstrapReady()
+  const consented = useConsentValid()
+  const [signedIn, setSignedIn] = useState(!!getApiKey())
+
+  // Order: stored state loads (nothing shown), then the gate, then key entry, then the app.
+  // No screen, and no network request, exists before the gate is passed.
+  if (!ready) return null
+  if (!consented) return <Gate />
+  if (!signedIn) return <Login onDone={() => setSignedIn(true)} />
+  return <Shell onSignOut={() => setSignedIn(false)} />
 }

@@ -55,7 +55,8 @@ export default defineConfig({
       devOptions: { enabled: false },
     }),
   ],
-  test: { environment: 'node' },
+  // The gate denies network access by default; tests that exercise the API opt in via the setup file.
+  test: { environment: 'node', setupFiles: ['./src/test-setup.ts'] },
   server: { proxy },
   preview: { proxy },
 })

@@ -19,6 +19,22 @@ function headers(): Record<string, string> {
   }
 }
 
+/**
+ * The age gate / terms consent check. Default is DENY: until main.tsx wires the real check, nothing can reach
+ * the network. Every request goes through request() (and the render WebSocket checks too), so no code path
+ * can fetch generated content before the gate has been passed.
+ */
+let consentOk: () => boolean = () => false
+export function setConsentChecker(fn: () => boolean): void {
+  consentOk = fn
+}
+
+export class GateError extends Error {
+  constructor() {
+    super('Accept the age confirmation and terms to continue.')
+  }
+}
+
 export class ApiError extends Error {
   status?: number
   constructor(message: string, status?: number) {
@@ -28,6 +44,7 @@ export class ApiError extends Error {
 }
 
 async function request(path: string, init: RequestInit = {}): Promise<Response> {
+  if (!consentOk()) throw new GateError()
   let res: Response
   try {
     res = await fetch(`${BASE}${path}`, {
@@ -196,6 +213,7 @@ export function waitForRenderEvent(
   timeoutMs: number,
   signal?: AbortSignal,
 ): Promise<RenderImage[] | null> {
+  if (!consentOk()) return Promise.resolve(null)
   return new Promise((resolve) => {
     let ws: WebSocket | null = null
     let ping: ReturnType<typeof setInterval> | undefined

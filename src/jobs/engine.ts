@@ -58,6 +58,18 @@ export class JobEngine {
     return this.loaded
   }
 
+  private gate: () => boolean = () => true
+
+  /** While the gate returns false (age/terms not accepted) queued jobs wait instead of being sent. */
+  setGate(fn: () => boolean): void {
+    this.gate = fn
+  }
+
+  /** Call when the gate opens, to start anything that was waiting. */
+  resume(): void {
+    void this.pump()
+  }
+
   getJobs(): Job[] {
     return this.jobs
   }
@@ -146,7 +158,7 @@ export class JobEngine {
   }
 
   private async pump(): Promise<void> {
-    if (this.active) return
+    if (this.active || !this.gate()) return
     const next = [...this.jobs].reverse().find((j) => j.status === 'queued') // oldest first
     if (!next) return
     const abort = new AbortController()

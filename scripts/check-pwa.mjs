@@ -58,7 +58,7 @@ await page.setOfflineMode(false)
 
 // Manifest installability basics, as Chrome sees them.
 const client = await page.createCDPSession()
-const { errors, installabilityErrors } = await client.send('Page.getInstallabilityErrors').then((r) => ({ errors: r.installabilityErrors, installabilityErrors: r.installabilityErrors }))
+const { installabilityErrors } = await client.send('Page.getInstallabilityErrors')
 out.installabilityErrors = installabilityErrors
 
 console.log(JSON.stringify(out, null, 2))
