@@ -9,10 +9,12 @@ import Queue from './screens/Queue'
 import Settings from './screens/Settings'
 import Workflows from './screens/Workflows'
 import { OfflineBanner, UpdateBanner } from './components/Banners'
+import PrivacyCover from './components/PrivacyCover'
 import { useJobs } from './jobs/instance'
 import { isFinished } from './jobs/types'
 import { useBootstrapReady } from './state/bootstrap'
 import { useConsentValid } from './state/consent'
+import { useApplyDiscreet } from './state/discreet'
 
 function TabBar() {
   const active = useJobs().filter((j) => !isFinished(j.status)).length
@@ -59,11 +61,20 @@ export default function App() {
   const ready = useBootstrapReady()
   const consented = useConsentValid()
   const [signedIn, setSignedIn] = useState(!!getApiKey())
+  useApplyDiscreet()
 
   // Order: stored state loads (nothing shown), then the gate, then key entry, then the app.
   // No screen, and no network request, exists before the gate is passed.
-  if (!ready) return null
-  if (!consented) return <Gate />
-  if (!signedIn) return <Login onDone={() => setSignedIn(true)} />
-  return <Shell onSignOut={() => setSignedIn(false)} />
+  let screen = null
+  if (ready) {
+    if (!consented) screen = <Gate />
+    else if (!signedIn) screen = <Login onDone={() => setSignedIn(true)} />
+    else screen = <Shell onSignOut={() => setSignedIn(false)} />
+  }
+  return (
+    <>
+      {screen}
+      <PrivacyCover />
+    </>
+  )
 }

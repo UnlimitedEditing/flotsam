@@ -15,7 +15,11 @@ engine.setGate(isConsentValid) // queued jobs also wait for the gate
 onConsentChange(() => isConsentValid() && engine.resume())
 initPwa()
 initInstall()
-startNotifier(engine, () => getPrefs().notifyDone)
+startNotifier(
+  engine,
+  () => getPrefs().notifyDone,
+  () => getPrefs().discreet,
+)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

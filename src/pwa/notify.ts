@@ -34,6 +34,7 @@ export interface DecisionInput {
   visibility: DocumentVisibilityState
   enabled: boolean
   permission: NotifyPermission
+  discreet?: boolean // neutral wording, nothing that names the app
 }
 
 /** Returns the notification to show, or null. Payload text is fixed and contains no job content. */
@@ -43,14 +44,21 @@ export function decide({
   visibility,
   enabled,
   permission,
+  discreet,
 }: DecisionInput): NotificationSpec | null {
   if (!enabled || permission !== 'granted' || visibility !== 'hidden') return null
   if (!prev || isFinished(prev) || !isFinished(next.status)) return null // only a live job that just finished
   if (next.status === 'canceled') return null
   const ok = next.status === 'done'
   return {
-    title: 'Flotsam',
-    body: ok ? 'Your render is ready' : 'A render needs attention',
+    title: discreet ? 'Reminder' : 'Flotsam',
+    body: discreet
+      ? ok
+        ? 'Ready'
+        : 'Needs attention'
+      : ok
+        ? 'Your render is ready'
+        : 'A render needs attention',
     tag: `job-${next.id}`,
     jobId: next.id,
   }
@@ -83,7 +91,11 @@ interface EngineLike {
 }
 
 /** Watches job status changes and notifies per `decide`. `getEnabled` is read each time so toggles apply live. */
-export function startNotifier(engine: EngineLike, getEnabled: () => boolean): () => void {
+export function startNotifier(
+  engine: EngineLike,
+  getEnabled: () => boolean,
+  getDiscreet: () => boolean = () => false,
+): () => void {
   const last = new Map<string, JobStatus>(engine.getJobs().map((j) => [j.id, j.status]))
   return engine.subscribe((jobs) => {
     for (const job of jobs) {
@@ -93,6 +105,7 @@ export function startNotifier(engine: EngineLike, getEnabled: () => boolean): ()
         visibility: document.visibilityState,
         enabled: getEnabled(),
         permission: permissionState(),
+        discreet: getDiscreet(),
       })
       last.set(job.id, job.status)
       if (spec) void show(spec)

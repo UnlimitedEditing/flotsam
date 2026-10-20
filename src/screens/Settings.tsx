@@ -5,6 +5,7 @@ import { getImageHost, imageLoads, makeTestPng } from '../images/hosts/registry'
 import InstallCard from '../components/InstallCard'
 import { engine } from '../jobs/instance'
 import { permissionState, requestNotifyPermission, type NotifyPermission } from '../pwa/notify'
+import { appName } from '../state/discreet'
 import { setPrefs, usePrefs } from '../state/prefs'
 
 const VERSION = (import.meta.env.VITE_APP_VERSION as string | undefined) ?? 'dev'
@@ -71,6 +72,29 @@ export default function Settings({ onSignOut }: { onSignOut: () => void }) {
         />
         <span>Show adult workflows (their results are always blurred until tapped)</span>
       </label>
+
+      <h2>Privacy</h2>
+      <label className="toggle">
+        <input
+          type="checkbox"
+          checked={prefs.privacyScreen}
+          onChange={(e) => setPrefs({ privacyScreen: e.target.checked })}
+        />
+        <span>Cover the screen when the app is in the background</span>
+      </label>
+      <label className="toggle">
+        <input
+          type="checkbox"
+          checked={prefs.discreet}
+          onChange={(e) => setPrefs({ discreet: e.target.checked })}
+        />
+        <span>Discreet mode (neutral name and notification wording)</span>
+      </label>
+      <p className="muted">
+        The cover is best effort: some phones take their app-switcher snapshot before a page can react.
+        Discreet mode changes what this page and its notifications say. It cannot rename or re-icon an
+        installed home-screen app; that comes with the Android app.
+      </p>
 
       <h2>Appearance</h2>
       <div className="row">
@@ -178,7 +202,9 @@ export default function Settings({ onSignOut }: { onSignOut: () => void }) {
         </>
       )}
 
-      <p className="muted version">Flotsam {VERSION}</p>
+      <p className="muted version">
+        {appName(prefs.discreet)} {VERSION}
+      </p>
     </main>
   )
 }
