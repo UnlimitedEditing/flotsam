@@ -28,3 +28,6 @@ Known behaviour
   - WebSocket `render-events` is not subject to CORS, so it can connect directly.
 - [ ] Web Push / FCM support (assumed none: polling + local notifications).
 - [ ] Upload host for image inputs.
+
+## Dev gotcha: Node TLS
+Node could not verify the `app.graydient.ai` certificate chain ("unable to verify the first certificate", the server likely omits its intermediate). `npm run dev` therefore starts Vite with `node --use-system-ca`, which uses the Windows certificate store. Without it the dev proxy returns 502.
