@@ -38,7 +38,9 @@ The manifest URL is a **build-time setting**; empty (the default) means the upda
   -Pflotsam.updateManifestUrl=https://updates.example.com/app/version.json
 ```
 
-(Phase 6 will pass these from a git tag automatically.) Host `version.json` and the APK on the same HTTPS origin: GitHub Releases/Pages or Cloudflare Pages are free. Not graydient.ai (it is not yours to use, and the name concern applies).
+Releases are built by GitHub Actions (`docs/release.md`), which passes these from the git tag and sets the manifest URL to `https://github.com/UnlimitedEditing/flotsam/releases/latest/download/version.json`. Host `version.json` and the APK on the same HTTPS origin. Not graydient.ai (it is not yours to use, and the name concern applies).
+
+**GitHub redirects downloads.** `releases/latest/download/...` answers 302 to `releases/download/<tag>/...` on github.com, which answers 302 to `release-assets.githubusercontent.com`. The updater follows up to 5 redirects, https only, and only to the same origin or (when the update host is github.com) to `*.githubusercontent.com`; anything else is refused. Drafts and pre-releases are invisible to `latest`, so a draft release can never be offered to users.
 
 ## Publishing a release
 

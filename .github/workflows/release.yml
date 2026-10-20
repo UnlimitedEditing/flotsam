@@ -1,0 +1,123 @@
+name: Release
+
+# Push a tag like v1.3.0 to build a SIGNED APK and create a DRAFT GitHub release containing:
+#   flotsam-1.3.0.apk, version.json (read by the app's self-updater) and SHA256SUMS.
+# The release stays a draft on purpose: drafts are invisible to the public and to the updater
+# (releases/latest/download/version.json only sees published releases). Publish it by hand after review.
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Build, sign and draft the release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # only this job may create a release
+    env:
+      TAG: ${{ github.ref_name }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the release notes are built from the history since the previous tag
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # Fail fast on a badly named tag; this also computes versionName/versionCode and the notes.
+      - name: Read version from the tag
+        id: info
+        run: node scripts/release-info.mjs "$TAG" --github-output "$GITHUB_OUTPUT" --notes-md notes.md --notes-txt notes.txt
+
+      - run: npm ci
+      - name: Web tests, build and service-worker guard
+        run: npm test
+      - run: npm run build:android
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-36 build-tools;36.0.0
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Decode the signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.FLOTSAM_KEYSTORE_B64 }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_B64" || { echo "::error::Secret FLOTSAM_KEYSTORE_B64 is not set"; exit 1; }
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/flotsam-release.p12"
+          echo "FLOTSAM_KEYSTORE_PATH=$RUNNER_TEMP/flotsam-release.p12" >> "$GITHUB_ENV"
+
+      - name: Kotlin tests and signed release build
+        working-directory: android
+        env:
+          FLOTSAM_KEYSTORE_PASSWORD: ${{ secrets.FLOTSAM_KEYSTORE_PASSWORD }}
+          FLOTSAM_KEY_ALIAS: ${{ secrets.FLOTSAM_KEY_ALIAS }}
+          FLOTSAM_KEY_PASSWORD: ${{ secrets.FLOTSAM_KEY_PASSWORD }}
+          VERSION_NAME: ${{ steps.info.outputs.versionName }}
+          VERSION_CODE: ${{ steps.info.outputs.versionCode }}
+        run: |
+          ./gradlew --no-daemon testDebugUnitTest assembleRelease \
+            -Pflotsam.versionCode="$VERSION_CODE" \
+            -Pflotsam.versionName="$VERSION_NAME" \
+            -Pflotsam.updateManifestUrl="https://github.com/${REPO}/releases/latest/download/version.json"
+
+      - name: Verify the signature and name the files
+        env:
+          VERSION_NAME: ${{ steps.info.outputs.versionName }}
+        run: |
+          set -euo pipefail
+          BT="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
+          APK="flotsam-${VERSION_NAME}.apk"
+          cp android/app/build/outputs/apk/release/app-release.apk "$APK"
+          "$BT/apksigner" verify --print-certs "$APK" | tee certs.txt
+          GOT="$(grep -m1 'certificate SHA-256 digest' certs.txt | awk '{print $NF}')"
+          WANT="$(tr -d '[:space:]' < release/signing-fingerprint.txt)"
+          if [ "$GOT" != "$WANT" ]; then
+            echo "::error::APK is signed with $GOT, expected $WANT. Refusing to publish."
+            exit 1
+          fi
+          echo "APK=$APK" >> "$GITHUB_ENV"
+
+      - name: Build version.json and checksums
+        env:
+          MIN_SUPPORTED: ${{ steps.info.outputs.minSupported }}
+        run: |
+          set -euo pipefail
+          node scripts/make-version-json.mjs "$APK" \
+            "https://github.com/${REPO}/releases/download/${TAG}/${APK}" \
+            --notes "$(cat notes.txt)" --min "$MIN_SUPPORTED" --out version.json
+          cat version.json
+          sha256sum "$APK" version.json > SHA256SUMS
+
+      - name: Create the DRAFT release (APK first, then version.json)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" "$APK" --draft --title "Flotsam ${TAG#v}" --notes-file notes.md
+          gh release upload "$TAG" version.json SHA256SUMS
+          {
+            echo "### Draft release created: $TAG"
+            echo
+            echo "It is **not public** and the app's updater cannot see it. Review it, finish the legal checklist"
+            echo "(docs/privacy-and-terms.md), then publish it from the Releases page."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove the signing key from the runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/flotsam-release.p12"

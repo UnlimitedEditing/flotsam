@@ -1,0 +1,52 @@
+name: CI
+
+# Runs on every push and pull request. No secrets are used here, and nothing is signed or published.
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web (lint, tests, build, service-worker guard)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      # Builds first, then runs the unit tests and the guard that the service worker caches nothing but the shell.
+      - run: npm test
+
+  android:
+    name: Android (Kotlin tests, lint, debug build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build:android
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-36 build-tools;36.0.0
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Kotlin tests, lint and a debug APK
+        working-directory: android
+        run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug
