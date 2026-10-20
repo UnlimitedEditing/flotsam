@@ -1,32 +1,34 @@
-# React + TypeScript + Vite
+# Flotsam
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+An independent mobile client for your own Graydient account: run workflows from your phone, see results, and view the 3D and data files some workflows return.
 
-Currently, two official plugins are available:
+**Flotsam is not made, endorsed or supported by Graydient.** It has no accounts and no analytics; your API key and history stay on your device.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+> **Status: pre-release.** The Terms and Content Policy text is a draft and has not been through legal review. Do not distribute builds publicly until `docs/privacy-and-terms.md` is complete. The app can show adult content: it needs an 18+ confirmation, blurs media by default and hides adult workflows until you turn them on.
 
-## React Compiler
+## What is here
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- `src/`: the web app (React + TypeScript, installable as a PWA).
+- `android/`: the Android shell (Capacitor + a Kotlin plugin: native networking, encrypted key storage, biometric unlock, share-in, background render checks, self-update).
+- `worker/`: a small Cloudflare Worker that proxies the web version (Graydient and Catbox send no CORS headers).
+- `scripts/`, `.github/workflows/`: release tooling and CI.
+- `docs/`: `android.md`, `updates.md`, `release.md`, `deploy-pwa.md`, `privacy-and-terms.md`, `api-notes.md`.
 
-## Expanding the Oxlint configuration
+## Develop
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev          # web app with the dev proxies
+npm test             # builds, then web tests + the service-worker guard
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Android: see `docs/android.md`. Releases: see `docs/release.md`.
+
+## Releases
+
+Signed APKs are built by GitHub Actions from version tags and published on the Releases page. Check any APK with `apksigner verify --print-certs`; the certificate SHA-256 should be
+`648a7c2c58a720d1445a21ea1d693d1bf93fa95302dd607d4c967568c1a250d4`.
+
+## License
+
+No license has been chosen yet. Until one is added, all rights are reserved.
