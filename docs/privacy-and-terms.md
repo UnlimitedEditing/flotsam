@@ -4,6 +4,7 @@ Flotsam is an independent client for a service that can produce adult content. T
 
 ## What the gate does
 
+- **One exception, Android only:** if the build has an update URL set, the app asks the update host for `version.json` (once a day) even before the gate, because a forced update must never depend on consent. That request carries nothing but the device's IP address and the request itself. See `docs/updates.md`.
 - First run shows only the gate: the Terms and Content Policy (`src/legal/terms.ts`) and two required confirmations (18+, accepted terms). Nothing else renders and no network request is made before it is passed.
 - Enforced in three places, so no single bug can bypass it:
   1. `App.tsx` renders only the gate until consent is valid.

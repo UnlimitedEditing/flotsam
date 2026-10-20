@@ -4,6 +4,7 @@ import { clearApiKey, getApiKey } from '../api/storage'
 import { getImageHost, imageLoads, makeTestPng } from '../images/hosts/registry'
 import ClearDataButton from '../components/ClearDataButton'
 import InstallCard from '../components/InstallCard'
+import UpdatePanel from '../components/UpdatePanel'
 import LockSettings from '../components/LockSettings'
 import { TERMS, TERMS_DRAFT_NOTICE, TERMS_VERSION } from '../legal/terms'
 import { engine } from '../jobs/instance'
@@ -150,6 +151,9 @@ export default function Settings({ onSignOut }: { onSignOut: () => void }) {
           {hostTest && <p className="muted probe">{hostTest}</p>}
         </>
       )}
+
+      <h2>App updates</h2>
+      <UpdatePanel />
 
       <h2>Install</h2>
       <InstallCard />

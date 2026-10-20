@@ -9,10 +9,15 @@ import Settings from './screens/Settings'
 import Share from './screens/Share'
 import NativeEvents from './native/NativeEvents'
 import Workflows from './screens/Workflows'
-import { OfflineBanner, UpdateBanner } from './components/Banners'
+import { NativeUpdateBanner, OfflineBanner, UpdateBanner } from './components/Banners'
 import PrivacyCover from './components/PrivacyCover'
 import LockScreen from './screens/LockScreen'
 import { useLocked } from './security/lock'
+import { useEffect } from 'react'
+import UpdateRequired from './screens/UpdateRequired'
+import { checkForUpdate, useAppUpdate } from './native/updater'
+import { isForced, pickScreen } from './native/updateState'
+import { isNative } from './native/platform'
 import { useJobs } from './jobs/instance'
 import { isFinished } from './jobs/types'
 import { useBootstrapReady } from './state/bootstrap'
@@ -44,6 +49,7 @@ function Shell({ onSignOut }: { onSignOut: () => void }) {
     <HashRouter>
       <div className="shell">
         <NativeEvents />
+        <NativeUpdateBanner />
         <UpdateBanner />
         <OfflineBanner />
         <div className="view">
@@ -67,21 +73,29 @@ export default function App() {
   const consented = useConsentValid()
   const locked = useLocked()
   const signedIn = useSignedIn()
+  const update = useAppUpdate()
   useApplyDiscreet()
 
-  // Order: stored state loads (nothing shown), then the gate, then key entry, then the app.
-  // No screen, and no network request, exists before the gate is passed.
-  let screen = null
-  if (ready) {
-    // A locked app renders only the lock screen: no app content is in the DOM behind it.
-    if (locked) screen = <LockScreen />
-    else if (!consented) screen = <Gate />
-    else if (!signedIn) screen = <Login onDone={() => {}} />
-    else screen = <Shell onSignOut={() => {}} />
+  // Once a day, in the Android app: look for a new version. Never before stored state has loaded.
+  useEffect(() => {
+    if (ready && isNative()) void checkForUpdate(true)
+  }, [ready])
+
+  // Order: stored state loads (nothing shown), a forced update, the lock, the age gate, key entry, the app.
+  // No screen, and no network request, exists before the gate is passed (the update check is the one exception:
+  // it sends nothing but the device's address to the update host, and updating must not depend on consent).
+  const which = pickScreen({ ready, forcedUpdate: isForced(update), locked, consented, signedIn })
+  const screens = {
+    blank: null,
+    update: <UpdateRequired />,
+    lock: <LockScreen />,
+    gate: <Gate />,
+    login: <Login onDone={() => {}} />,
+    app: <Shell onSignOut={() => {}} />,
   }
   return (
     <>
-      {screen}
+      {screens[which]}
       <PrivacyCover />
     </>
   )

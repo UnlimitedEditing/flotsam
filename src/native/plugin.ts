@@ -26,6 +26,19 @@ export interface SharedImage {
   base64: string
 }
 
+export type NativeUpdateDecision = 'none' | 'up_to_date' | 'available' | 'forced'
+
+export interface NativeUpdateState {
+  enabled: boolean
+  installedCode: number
+  installedName: string
+  lastCheck: number
+  checked: boolean
+  decision: NativeUpdateDecision
+  error: string
+  manifest?: { versionCode: number; versionName: string; notes: string; size: number }
+}
+
 export type NativePermission = 'granted' | 'denied' | 'prompt'
 
 export interface FlotsamNativePlugin {
@@ -71,11 +84,22 @@ export interface FlotsamNativePlugin {
   notify(o: { jobId: string; ok: boolean }): Promise<void>
   setDiscreet(o: { enabled: boolean }): Promise<void>
 
+  updateStatus(): Promise<NativeUpdateState>
+  updateCheck(o: { auto?: boolean }): Promise<NativeUpdateState>
+  updateDownload(): Promise<{ ready: boolean; size: number }>
+  updateInstall(): Promise<{ started?: boolean; needsPermission?: boolean }>
+  updateOpenInstallSettings(): Promise<void>
+
   sharedCount(): Promise<{ count: number }>
   takeShared(): Promise<{ images: SharedImage[] }>
 
   addListener(event: 'streamLine', fn: (e: StreamLine) => void): Promise<PluginListenerHandle>
   addListener(event: 'streamEnd', fn: (e: StreamEnd) => void): Promise<PluginListenerHandle>
+  addListener(
+    event: 'updateProgress',
+    fn: (e: { done: number; total: number }) => void,
+  ): Promise<PluginListenerHandle>
+  addListener(event: 'updateFailed', fn: (e: { message: string }) => void): Promise<PluginListenerHandle>
   addListener(event: 'shareReceived', fn: (e: { count: number }) => void): Promise<PluginListenerHandle>
 }
 

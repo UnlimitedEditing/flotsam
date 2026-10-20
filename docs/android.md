@@ -61,4 +61,4 @@ On Windows use `gradlew.bat`. Notes: `networkTimeout` in `gradle-wrapper.propert
 - Background checks are best effort (see above) and need the notification permission (Android 13+ asks on first enable).
 - Biometric unlock is a convenience on top of the PIN, not a cryptographic binding.
 - The Android app calls Graydient directly; it does not use the Cloudflare Worker (that is only for the web/PWA version).
-- Self-update, the release keystore, CI signing and the download page are Phases 5-7.
+- Self-update is built (see `docs/updates.md`); the release keystore, CI signing and the download page are Phases 6-7.

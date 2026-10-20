@@ -1,4 +1,7 @@
+import { Link } from 'react-router-dom'
 import { useJobs } from '../jobs/instance'
+import { useAppUpdate } from '../native/updater'
+import { isUpdateAvailable } from '../native/updateState'
 import { isFinished } from '../jobs/types'
 import { useOnline } from '../pwa/online'
 import { applyUpdate, useUpdateReady } from '../pwa/register'
@@ -16,6 +19,20 @@ export function UpdateBanner() {
       <button className="small" disabled={busy} onClick={applyUpdate}>
         Reload
       </button>
+    </div>
+  )
+}
+
+/** Android: a new version exists. Quiet and dismissible by simply ignoring it; the controls live in Settings. */
+export function NativeUpdateBanner() {
+  const u = useAppUpdate()
+  if (!isUpdateAvailable(u) || u.phase !== 'idle') return null
+  return (
+    <div className="banner" role="status">
+      <span>Version {u.manifest?.versionName ?? ''} is available.</span>
+      <Link to="/settings" className="banner-link">
+        Update
+      </Link>
     </div>
   )
 }

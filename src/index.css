@@ -613,3 +613,23 @@ details h3 {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent);
 }
+
+/* Self-update */
+.banner-link {
+  color: #fff;
+  font-weight: 600;
+  text-decoration: underline;
+}
+.update-panel {
+  margin: 8px 0;
+}
+.update-notes p {
+  margin: 4px 0;
+}
+.update-permission {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  margin: 8px 0;
+}
