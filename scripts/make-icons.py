@@ -30,11 +30,13 @@ def plank_polygon(cx, cy, w, h, deg):
     return pts
 
 
-def draw(scale=1.0, rounded=True):
+def draw(scale=1.0, rounded=True, bg=True):
     """Full-canvas drawing. `scale` shrinks the glyph toward the centre (maskable safe zone)."""
     img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    if rounded:
+    if not bg:
+        pass  # glyph only, on a transparent layer (Android adaptive-icon foreground)
+    elif rounded:
         d.rounded_rectangle([0, 0, S - 1, S - 1], radius=224, fill=BG)
     else:
         d.rectangle([0, 0, S, S], fill=BG)
@@ -76,6 +78,37 @@ def save(img, name, size):
     img.resize((size, size), Image.LANCZOS).save(OUT / "icons" / name)
 
 
+ANDROID_RES = ROOT / "android" / "app" / "src" / "main" / "res"
+DENSITIES = {"mdpi": 1, "hdpi": 1.5, "xhdpi": 2, "xxhdpi": 3, "xxxhdpi": 4}
+
+
+def notes_glyph(size=1024):
+    """Neutral launcher glyph for discreet mode: a plain notepad page, nothing that names the app."""
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    s = size / 1024
+    d.rounded_rectangle([300 * s, 250 * s, 724 * s, 780 * s], radius=36 * s, fill=(255, 255, 255))
+    for i, y in enumerate((380, 470, 560, 650)):
+        d.rounded_rectangle([360 * s, y * s, (664 if i < 3 else 560) * s, (y + 26) * s], radius=13 * s, fill=(120, 120, 120))
+    return img
+
+
+def android():
+    """Adaptive-icon layers (108dp, glyph inside the 72dp safe zone) and legacy square/round icons."""
+    glyph = draw(0.66, rounded=False, bg=False)
+    notes = notes_glyph()
+    full = draw(1.0, rounded=True)
+    for name, k in DENSITIES.items():
+        d = ANDROID_RES / f"mipmap-{name}"
+        d.mkdir(parents=True, exist_ok=True)
+        px = int(108 * k)
+        glyph.resize((px, px), Image.LANCZOS).save(d / "ic_launcher_foreground.png")
+        notes.resize((px, px), Image.LANCZOS).save(d / "ic_launcher_neutral_foreground.png")
+        legacy = int(48 * k)
+        full.resize((legacy, legacy), Image.LANCZOS).save(d / "ic_launcher.png")
+        full.resize((legacy, legacy), Image.LANCZOS).save(d / "ic_launcher_round.png")
+
+
 if __name__ == "__main__":
     normal = draw(1.0, rounded=True)
     maskable = draw(0.62, rounded=False)  # glyph inside the ~80% safe zone, full-bleed background
@@ -85,3 +118,6 @@ if __name__ == "__main__":
     save(draw(0.9, rounded=False), "apple-touch-icon.png", 180)  # iOS rounds the corners itself
     (OUT / "icon.svg").write_text(svg(), encoding="utf-8")
     print("wrote", sorted(p.name for p in (OUT / "icons").iterdir()), "and icon.svg")
+    if ANDROID_RES.exists():
+        android()
+        print("wrote Android launcher icons")

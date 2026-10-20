@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name">Flotsam</string>
     <string name="title_activity_main">Flotsam</string>
+    <string name="neutral_app_name">Notes</string>
     <string name="package_name">app.flotsam.client</string>
     <string name="custom_url_scheme">app.flotsam.client</string>
 </resources>
