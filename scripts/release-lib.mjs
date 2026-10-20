@@ -30,7 +30,12 @@ export function buildNotes(subjects, { max = 2000, title = '' } = {}) {
   const markdown =
     (title ? `## ${title}\n\n` : '') +
     (lines.length ? lines.map((l) => `- ${l}`).join('\n') : '- Maintenance release')
-  const plain = (lines.length ? lines.join('\n') : 'Maintenance release').slice(0, max)
+  let plain = lines.length ? lines.join('\n') : 'Maintenance release'
+  if (plain.length > max) {
+    plain = plain.slice(0, max)
+    const nl = plain.lastIndexOf('\n')
+    if (nl > max / 2) plain = plain.slice(0, nl) // end on a whole line
+  }
   return { markdown, plain }
 }
 
