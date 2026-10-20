@@ -7,6 +7,12 @@ export default defineConfig({
   server: {
     // app.graydient.ai sends no CORS headers (verified 2026-10-20), so dev goes through this proxy.
     proxy: {
+      // Catbox sends no CORS headers either; dev uploads go through this proxy.
+      '/catbox': {
+        target: 'https://catbox.moe',
+        changeOrigin: true,
+        rewrite: () => '/user/api.php',
+      },
       '/gd': {
         target: 'https://app.graydient.ai',
         changeOrigin: true,

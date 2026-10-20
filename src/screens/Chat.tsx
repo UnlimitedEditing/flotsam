@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import JobCard from '../components/JobCard'
 import Lightbox from '../components/Lightbox'
+import { getImageHost } from '../images/hosts/registry'
+import { resizeImage } from '../images/resize'
 import { resolveImage } from '../images/resolve'
 import { InvalidImageUrlError, NeedsImageHostError } from '../images/types'
 import { engine, useJobs } from '../jobs/instance'
@@ -88,8 +90,11 @@ export default function Chat() {
     if (!file) return
     setErr('')
     try {
-      // An image host arrives with Settings; until one is configured this explains what to do.
-      const url = await resolveImage({ kind: 'file', blob: file, name: file.name })
+      // Resize first (smaller upload, and Graydient does not need more), then upload via the chosen host.
+      // With no host configured this throws NeedsImageHostError, which explains what to do.
+      const host = getImageHost()
+      const blob = host ? await resizeImage(file) : file
+      const url = await resolveImage({ kind: 'file', blob, name: file.name }, host)
       setForm({ media: { ...form.media, [slot.id]: url } })
     } catch (e) {
       setErr(e instanceof NeedsImageHostError ? e.message : (e as Error).message)

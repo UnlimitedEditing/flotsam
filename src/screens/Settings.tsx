@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { probeWorkflows } from '../api/probe'
 import { clearApiKey, getApiKey } from '../api/storage'
+import { getImageHost, imageLoads, makeTestPng } from '../images/hosts/registry'
 import { engine } from '../jobs/instance'
 import { setPrefs, usePrefs } from '../state/prefs'
 
@@ -11,6 +12,28 @@ export default function Settings({ onSignOut }: { onSignOut: () => void }) {
   const key = getApiKey()
   const [probe, setProbe] = useState('')
   const [busy, setBusy] = useState(false)
+  const [hostTest, setHostTest] = useState('')
+  const [testing, setTesting] = useState(false)
+
+  async function testUpload() {
+    const host = getImageHost()
+    if (!host) return
+    setTesting(true)
+    setHostTest('')
+    try {
+      const url = await host.upload(await makeTestPng(), 'flotsam-test.png')
+      const loads = await imageLoads(url)
+      setHostTest(
+        loads
+          ? `Upload works. The file is reachable at ${url}`
+          : `Uploaded to ${url} but it did not load as an image yet. Try again in a moment.`,
+      )
+    } catch (e) {
+      setHostTest((e as Error).message)
+    } finally {
+      setTesting(false)
+    }
+  }
 
   return (
     <main className="page">
@@ -54,6 +77,46 @@ export default function Settings({ onSignOut }: { onSignOut: () => void }) {
           </button>
         ))}
       </div>
+
+      <h2>Image host</h2>
+      <p className="muted">
+        Graydient can only read inputs from a URL, so photos from this device are uploaded to a host you
+        choose. Flotsam does not host anything itself.
+      </p>
+      <div className="row">
+        {(['none', 'catbox'] as const).map((h) => (
+          <button
+            key={h}
+            className={prefs.imageHost === h ? '' : 'ghost'}
+            onClick={() => setPrefs({ imageHost: h })}
+          >
+            {h === 'none' ? 'None' : 'Catbox'}
+          </button>
+        ))}
+      </div>
+      {prefs.imageHost === 'catbox' && (
+        <>
+          <p className="muted">
+            Uploads go to catbox.moe under{' '}
+            <a href="https://catbox.moe/" target="_blank" rel="noopener noreferrer">
+              its own rules
+            </a>
+            , which are yours to check, including what content it allows. Optional: your own Catbox user hash
+            ties uploads to your account; leave it empty to upload anonymously.
+          </p>
+          <input
+            type="password"
+            autoComplete="off"
+            placeholder="Catbox user hash (optional)"
+            value={prefs.catboxUserhash}
+            onChange={(e) => setPrefs({ catboxUserhash: e.target.value })}
+          />
+          <button className="ghost" disabled={testing} onClick={() => void testUpload()}>
+            {testing ? 'Testing…' : 'Test upload (sends a 1x1 pixel image)'}
+          </button>
+          {hostTest && <p className="muted probe">{hostTest}</p>}
+        </>
+      )}
 
       <h2>Notifications</h2>
       <p className="muted">Render-ready alerts arrive with the installable app (later phases).</p>

@@ -7,6 +7,10 @@
 //  - requires an Authorization header, so anonymous callers can't use it
 //  - streams request and response bodies, so the SSE stream on POST render/ passes through
 //
+// A second route, POST /upload/catbox, relays an image upload to Catbox (which sends no CORS headers
+// either). It requires a valid Graydient key (checked upstream, cached briefly in memory), caps the size,
+// forwards only the multipart body, never the Authorization header, and stores nothing.
+//
 // WebSockets (render-events) are not subject to CORS and connect to Graydient directly.
 
 export interface Env {
@@ -16,6 +20,10 @@ export interface Env {
 export const UPSTREAM = 'https://app.graydient.ai'
 const PATH_PREFIX = '/api/v3/'
 const MAX_BODY_BYTES = 1_000_000 // render requests are small JSON; media goes by URL, never through here
+export const CATBOX_ENDPOINT = 'https://catbox.moe/user/api.php'
+const UPLOAD_PATH = '/upload/catbox'
+const MAX_UPLOAD_BYTES = 10_000_000
+const KEY_TTL_MS = 10 * 60_000
 const ALLOWED_METHODS = ['GET', 'POST']
 const FORWARD_REQUEST_HEADERS = ['authorization', 'content-type', 'accept']
 const FORWARD_RESPONSE_HEADERS = ['content-type', 'cache-control', 'retry-after']
@@ -40,6 +48,58 @@ function corsHeaders(origin: string): Headers {
   return h
 }
 
+// Valid-key cache: SHA-256 of the Authorization value -> expiry. In-memory only; the key itself is not kept.
+const verified = new Map<string, number>()
+
+async function digest(value: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+async function keyIsValid(auth: string): Promise<boolean> {
+  const id = await digest(auth)
+  const until = verified.get(id)
+  if (until && until > Date.now()) return true
+  try {
+    const res = await fetch(`${UPSTREAM}${PATH_PREFIX}workflows?per_page=1`, {
+      headers: { authorization: auth },
+    })
+    if (!res.ok) return false
+  } catch {
+    return false
+  }
+  verified.set(id, Date.now() + KEY_TTL_MS)
+  return true
+}
+
+async function relayCatbox(request: Request, cors: Headers): Promise<Response> {
+  if (request.method !== 'POST') return fail(405, 'Method not allowed', cors)
+  const auth = request.headers.get('authorization')
+  if (!auth) return fail(401, 'Missing Authorization header', cors)
+  const length = Number(request.headers.get('content-length') ?? NaN)
+  if (Number.isNaN(length)) return fail(411, 'Content-Length required', cors)
+  if (length > MAX_UPLOAD_BYTES) return fail(413, 'Upload too large', cors)
+  if (!(await keyIsValid(auth))) return fail(401, 'Invalid Graydient key', cors)
+
+  const contentType = request.headers.get('content-type') ?? ''
+  if (!contentType.startsWith('multipart/form-data')) return fail(415, 'Expected multipart/form-data', cors)
+
+  let upstream: Response
+  try {
+    upstream = await fetch(CATBOX_ENDPOINT, {
+      method: 'POST',
+      headers: { 'content-type': contentType },
+      body: request.body,
+      redirect: 'manual',
+    })
+  } catch {
+    return fail(502, 'Upstream unreachable', cors)
+  }
+  const headers = cors
+  headers.set('content-type', upstream.headers.get('content-type') ?? 'text/plain')
+  return new Response(upstream.body, { status: upstream.status, headers })
+}
+
 function fail(status: number, message: string, cors?: Headers): Response {
   const headers = cors ?? new Headers()
   headers.set('content-type', 'application/json')
@@ -59,6 +119,8 @@ export default {
     // Browsers always send Origin on cross-origin calls; non-browser callers get no CORS grant.
     if (!origin) return fail(403, 'Origin not allowed')
     const cors = corsHeaders(origin)
+
+    if (url.pathname === UPLOAD_PATH) return relayCatbox(request, cors)
 
     if (!ALLOWED_METHODS.includes(request.method)) return fail(405, 'Method not allowed', cors)
     if (!url.pathname.startsWith(PATH_PREFIX)) return fail(404, 'Not found', cors)
