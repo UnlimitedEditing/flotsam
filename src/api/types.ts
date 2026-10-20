@@ -31,8 +31,26 @@ export interface RenderMedia {
   media_type?: string | null
 }
 
+export interface RenderImage {
+  url?: string
+  media?: RenderMedia[]
+}
+
 export interface RenderInfo {
   render_hash: string
-  images?: Array<{ url?: string; media?: RenderMedia[] }>
+  has_been_rendered?: boolean
+  images?: RenderImage[]
   // TODO: confirm status/progress fields on GET render/<hash>/
+}
+
+export interface ResolvedMedia {
+  url: string
+  mediaType: string | null
+  thumbnailUrl: string | null
+}
+
+/** Source media sent with a render. Graydient only accepts URLs (see images/resolve.ts). */
+export interface SourceMedia {
+  initImage?: string
+  initImageUrl?: string
 }
