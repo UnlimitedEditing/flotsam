@@ -450,3 +450,36 @@ audio.media {
 .m3ds-panel {
   background: var(--bg);
 }
+
+/* ModelTrends heat */
+.heat {
+  margin: 8px 0;
+}
+.heat p {
+  margin: 4px 0;
+  font-size: inherit;
+}
+.heat a {
+  color: var(--accent);
+  font-size: inherit;
+}
+.heat-add {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.heat-add input {
+  flex: 1;
+  margin: 0;
+}
+.linkbtn {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  text-decoration: underline;
+  font: inherit;
+}

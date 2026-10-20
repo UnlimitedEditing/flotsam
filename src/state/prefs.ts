@@ -7,6 +7,7 @@ export interface Prefs {
   showAdult: boolean // default OFF: adult (is_nsfw) workflows are hidden everywhere
   imageHost: 'none' | 'catbox' // where local photos are uploaded so Graydient can fetch them
   outputOverrides: Overrides // per-workflow result type (M3DS etc.), set by the user
+  modelTrendsIds: Record<string, string> // workflow slug -> 8-character ModelTrends model id
   catboxUserhash: string // the user's own Catbox account hash (optional; anonymous uploads work)
   theme: 'dark' | 'light'
   favorites: string[] // workflow slugs
@@ -20,6 +21,7 @@ const DEFAULTS: Prefs = {
   imageHost: 'none',
   catboxUserhash: '',
   outputOverrides: {},
+  modelTrendsIds: {},
   theme: 'dark',
   favorites: [],
   recents: [],
