@@ -1,0 +1,79 @@
+:root {
+  --bg: #fff;
+  --fg: #111;
+  --muted: #666;
+  --accent: #0a7;
+  --err: #c22;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1113;
+    --fg: #eee;
+    --muted: #9aa;
+    --accent: #2c9;
+    --err: #f66;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font:
+    16px/1.4 system-ui,
+    sans-serif;
+}
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: max(16px, env(safe-area-inset-top)) 16px 32px;
+}
+input,
+button {
+  font: inherit;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--muted);
+  background: transparent;
+  color: inherit;
+  width: 100%;
+  margin: 6px 0;
+}
+button {
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  cursor: pointer;
+}
+button.ghost {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--muted);
+}
+button:disabled {
+  opacity: 0.5;
+}
+.row {
+  display: flex;
+  gap: 8px;
+}
+.row button {
+  width: auto;
+  flex: 1;
+}
+.muted {
+  color: var(--muted);
+}
+.error {
+  color: var(--err);
+}
+ul {
+  padding-left: 18px;
+}
+li {
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+}
