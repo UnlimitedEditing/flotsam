@@ -10,6 +10,8 @@ import Settings from './screens/Settings'
 import Workflows from './screens/Workflows'
 import { OfflineBanner, UpdateBanner } from './components/Banners'
 import PrivacyCover from './components/PrivacyCover'
+import LockScreen from './screens/LockScreen'
+import { useLocked } from './security/lock'
 import { useJobs } from './jobs/instance'
 import { isFinished } from './jobs/types'
 import { useBootstrapReady } from './state/bootstrap'
@@ -60,6 +62,7 @@ function Shell({ onSignOut }: { onSignOut: () => void }) {
 export default function App() {
   const ready = useBootstrapReady()
   const consented = useConsentValid()
+  const locked = useLocked()
   const [signedIn, setSignedIn] = useState(!!getApiKey())
   useApplyDiscreet()
 
@@ -67,7 +70,9 @@ export default function App() {
   // No screen, and no network request, exists before the gate is passed.
   let screen = null
   if (ready) {
-    if (!consented) screen = <Gate />
+    // A locked app renders only the lock screen: no app content is in the DOM behind it.
+    if (locked) screen = <LockScreen />
+    else if (!consented) screen = <Gate />
     else if (!signedIn) screen = <Login onDone={() => setSignedIn(true)} />
     else screen = <Shell onSignOut={() => setSignedIn(false)} />
   }

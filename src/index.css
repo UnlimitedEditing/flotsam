@@ -552,3 +552,51 @@ audio.media {
   color: var(--muted);
   font-size: 1.2rem;
 }
+
+/* Lock screen */
+.lock {
+  text-align: center;
+  padding-top: 12vh;
+}
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin: 20px 0;
+}
+.dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--muted);
+}
+.dot.on {
+  background: var(--fg);
+  border-color: var(--fg);
+}
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  max-width: 300px;
+  margin: 16px auto;
+}
+.keypad button {
+  margin: 0;
+  padding: 16px 0;
+  font-size: 1.3rem;
+}
+.forgot {
+  margin-top: 24px;
+  text-align: left;
+}
+.confirm .error {
+  margin: 8px 0;
+}
+.lock-settings .row {
+  margin: 8px 0;
+}
+details h3 {
+  margin: 12px 0 2px;
+  font-size: 0.95rem;
+}

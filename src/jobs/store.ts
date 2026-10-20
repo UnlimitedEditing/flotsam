@@ -1,4 +1,4 @@
-import { get, set } from 'idb-keyval'
+import { clear, get, set } from 'idb-keyval'
 
 // IndexedDB with an in-memory fallback, so a blocked/private-mode browser never breaks the app.
 export interface KeyValueStore {
@@ -7,6 +7,19 @@ export interface KeyValueStore {
 }
 
 const memory = new Map<string, unknown>()
+// After "clear all data" nothing may write back (a late save would resurrect what was just wiped).
+let frozen = false
+
+/** Wipes everything stored through idbStore and refuses further writes until the page reloads. */
+export async function clearAllStored(): Promise<void> {
+  frozen = true
+  memory.clear()
+  try {
+    await clear()
+  } catch {
+    /* IndexedDB unavailable: the memory copy is already gone */
+  }
+}
 
 export const idbStore: KeyValueStore = {
   async read<T>(key: string, fallback: T): Promise<T> {
@@ -19,6 +32,7 @@ export const idbStore: KeyValueStore = {
     return (memory.get(key) as T | undefined) ?? fallback
   },
   async write<T>(key: string, value: T): Promise<void> {
+    if (frozen) return
     memory.set(key, value)
     try {
       await set(key, value)

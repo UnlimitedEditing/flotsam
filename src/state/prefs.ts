@@ -42,6 +42,7 @@ let state: Prefs = DEFAULT_PREFS
 const listeners = new Set<() => void>()
 
 function applyTheme(t: Prefs['theme']) {
+  if (typeof document === 'undefined') return // unit tests run without a DOM
   document.documentElement.dataset.theme = t
 }
 

@@ -2,7 +2,10 @@ import { useState } from 'react'
 import { probeWorkflows } from '../api/probe'
 import { clearApiKey, getApiKey } from '../api/storage'
 import { getImageHost, imageLoads, makeTestPng } from '../images/hosts/registry'
+import ClearDataButton from '../components/ClearDataButton'
 import InstallCard from '../components/InstallCard'
+import LockSettings from '../components/LockSettings'
+import { TERMS, TERMS_DRAFT_NOTICE, TERMS_VERSION } from '../legal/terms'
 import { engine } from '../jobs/instance'
 import { permissionState, requestNotifyPermission, type NotifyPermission } from '../pwa/notify'
 import { appName } from '../state/discreet'
@@ -96,6 +99,9 @@ export default function Settings({ onSignOut }: { onSignOut: () => void }) {
         installed home-screen app; that comes with the Android app.
       </p>
 
+      <h2>App lock</h2>
+      <LockSettings />
+
       <h2>Appearance</h2>
       <div className="row">
         {(['dark', 'light'] as const).map((t) => (
@@ -174,10 +180,25 @@ export default function Settings({ onSignOut }: { onSignOut: () => void }) {
             : 'Works while Flotsam is open or just moved to the background. The alert only says a render is ready; it never shows your prompt or any image. Alerts with the app fully closed need the Android app.'}
       </p>
 
+      <h2>Terms</h2>
+      <details>
+        <summary>Terms and Content Policy (version {TERMS_VERSION})</summary>
+        <p className="muted">{TERMS_DRAFT_NOTICE}</p>
+        {TERMS.map((s) => (
+          <section key={s.title}>
+            <h3>{s.title}</h3>
+            {s.body.map((p, i) => (
+              <p key={i}>{p}</p>
+            ))}
+          </section>
+        ))}
+      </details>
+
       <h2>Data on this device</h2>
       <button className="ghost" onClick={() => engine.clearAll()}>
         Clear finished jobs
       </button>
+      <ClearDataButton />
 
       {import.meta.env.DEV && (
         <>
