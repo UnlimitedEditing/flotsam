@@ -79,6 +79,30 @@ object UpdateUrlPolicy {
 
     fun isHttps(url: String): Boolean = parts(url) != null
 
+    const val MAX_REDIRECTS = 5
+    private const val GITHUB = "github.com"
+    private const val GITHUB_CDN_SUFFIX = ".githubusercontent.com"
+
+    /**
+     * May an update download follow a redirect to [target]? Only to https on the same origin, or, when the
+     * update host is github.com, to GitHub's own download CDN (release assets are served from
+     * release-assets.githubusercontent.com). Anything else is refused. The SHA-256 and Android's signature
+     * check still apply to whatever is downloaded.
+     */
+    fun redirectAllowed(originUrl: String, target: String): Boolean {
+        val o = parts(originUrl) ?: return false
+        val t = parts(target) ?: return false
+        if (o == t || (o.second == t.second && o.third == t.third)) return true
+        return o.second == GITHUB && t.third == 443 && t.second.endsWith(GITHUB_CDN_SUFFIX) && t.second.length > GITHUB_CDN_SUFFIX.length
+    }
+
+    /** Resolves a Location header (absolute or relative) against the URL that sent it. */
+    fun resolveLocation(base: String, location: String): String? = try {
+        URI(base).resolve(location.trim()).toString()
+    } catch (e: Exception) {
+        null
+    }
+
     /** The APK must come from the same host (and port) as version.json, so one trusted place hosts both. */
     fun sameOrigin(manifestUrl: String, apkUrl: String): Boolean {
         val a = parts(manifestUrl) ?: return false

@@ -9,7 +9,9 @@ import android.os.Build
 import android.provider.Settings
 import java.io.File
 import java.io.IOException
+import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 
 class UpdateError(message: String) : Exception(message)
 
@@ -49,9 +51,8 @@ class AppUpdater(private val context: Context) {
     /** Fetches version.json (blocking). On any problem the previous cache is kept and an error is thrown. */
     fun check() {
         if (!enabled) throw UpdateError("Updates are not set up in this build.")
-        val request = Request.Builder().url(manifestUrl).header("Accept", "application/json").build()
         val body = try {
-            Http.shortClient.newCall(request).execute().use { r ->
+            open(manifestUrl, Http.shortClient, mapOf("Accept" to "application/json")).use { r ->
                 if (!r.isSuccessful) throw UpdateError("The update service answered ${r.code}.")
                 r.body?.string().orEmpty()
             }
@@ -84,10 +85,9 @@ class AppUpdater(private val context: Context) {
         var offset = UpdateDownload.resumeOffset(if (part.exists()) part.length() else 0L, m.size)
         if (offset == 0L) part.delete()
 
-        val builder = Request.Builder().url(m.apkUrl)
-        if (offset > 0) builder.header("Range", "bytes=$offset-")
+        val extra = if (offset > 0) mapOf("Range" to "bytes=$offset-") else emptyMap()
         try {
-            Http.client.newCall(builder.build()).execute().use { r ->
+            open(m.apkUrl, Http.client, extra).use { r ->
                 if (!r.isSuccessful) throw UpdateError("The download failed (${r.code}).")
                 if (offset > 0 && !UpdateDownload.canAppend(offset, r.code)) {
                     part.delete() // the server ignored the range: start over from the beginning
@@ -141,6 +141,27 @@ class AppUpdater(private val context: Context) {
             throw UpdateError(verdict.reason)
         }
         return done
+    }
+
+    /**
+     * GET with manual, policy-checked redirects (the shared HTTP client never follows them itself).
+     * GitHub Releases answers with up to two: to the release path, then to its download CDN.
+     */
+    private fun open(startUrl: String, client: OkHttpClient, headers: Map<String, String>): Response {
+        var url = startUrl
+        repeat(UpdateUrlPolicy.MAX_REDIRECTS + 1) {
+            val b = Request.Builder().url(url)
+            headers.forEach { (k, v) -> b.header(k, v) }
+            val response = client.newCall(b.build()).execute()
+            if (!response.isRedirect) return response
+            val next = response.header("Location")?.let { UpdateUrlPolicy.resolveLocation(url, it) }
+            response.close()
+            if (next == null || !UpdateUrlPolicy.redirectAllowed(startUrl, next)) {
+                throw UpdateError("The update service redirected somewhere that is not allowed.")
+            }
+            url = next
+        }
+        throw UpdateError("The update service redirected too many times.")
     }
 
     fun readyFile(): File? {

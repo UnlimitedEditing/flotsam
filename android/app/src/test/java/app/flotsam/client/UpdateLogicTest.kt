@@ -101,6 +101,41 @@ class UpdateUrlPolicyTest {
     }
 }
 
+class UpdateRedirectPolicyTest {
+    private val origin = "https://github.com/UnlimitedEditing/flotsam/releases/latest/download/version.json"
+
+    @Test fun githubMayRedirectToItsOwnPathsAndCdn() {
+        assertTrue(UpdateUrlPolicy.redirectAllowed(origin, "https://github.com/UnlimitedEditing/flotsam/releases/download/v1.0.0/version.json"))
+        assertTrue(UpdateUrlPolicy.redirectAllowed(origin, "https://release-assets.githubusercontent.com/github-production-release-asset/1/abc"))
+        assertTrue(UpdateUrlPolicy.redirectAllowed(origin, "https://objects.githubusercontent.com/x"))
+    }
+
+    @Test fun everythingElseIsRefused() {
+        assertFalse(UpdateUrlPolicy.redirectAllowed(origin, "https://evil.example/a.apk"))
+        assertFalse(UpdateUrlPolicy.redirectAllowed(origin, "http://github.com/a"))
+        assertFalse(UpdateUrlPolicy.redirectAllowed(origin, "http://objects.githubusercontent.com/x"))
+        assertFalse(UpdateUrlPolicy.redirectAllowed(origin, "https://githubusercontent.com.evil.example/x"))
+        assertFalse(UpdateUrlPolicy.redirectAllowed(origin, "https://evilgithubusercontent.com/x"))
+        assertFalse(UpdateUrlPolicy.redirectAllowed(origin, "https://githubusercontent.com/x"))
+        assertFalse(UpdateUrlPolicy.redirectAllowed(origin, "https://objects.githubusercontent.com:8443/x"))
+        assertFalse(UpdateUrlPolicy.redirectAllowed(origin, "file:///sdcard/a.apk"))
+        assertFalse(UpdateUrlPolicy.redirectAllowed(origin, "not a url"))
+    }
+
+    @Test fun otherHostsMayOnlyRedirectWithinThemselves() {
+        val mine = "https://dl.example/app/version.json"
+        assertTrue(UpdateUrlPolicy.redirectAllowed(mine, "https://dl.example/other/version.json"))
+        assertFalse(UpdateUrlPolicy.redirectAllowed(mine, "https://objects.githubusercontent.com/x")) // the CDN exemption is github.com only
+        assertFalse(UpdateUrlPolicy.redirectAllowed(mine, "https://cdn.example/x"))
+    }
+
+    @Test fun resolvesRelativeAndAbsoluteLocations() {
+        assertEquals("https://github.com/a/b/c", UpdateUrlPolicy.resolveLocation("https://github.com/x/y", "/a/b/c"))
+        assertEquals("https://cdn.example/z", UpdateUrlPolicy.resolveLocation("https://github.com/x/y", "https://cdn.example/z"))
+        assertEquals(5, UpdateUrlPolicy.MAX_REDIRECTS)
+    }
+}
+
 class UpdateDownloadTest {
     @Test fun resumesOnlyFromAUsablePartialFile() {
         assertEquals(0L, UpdateDownload.resumeOffset(0, 100))
