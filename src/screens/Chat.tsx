@@ -10,6 +10,7 @@ import { engine, useJobs } from '../jobs/instance'
 import { buildRequest, emptyForm, missingRequired, unsupportedSlots, type FormValues } from '../lib/command'
 import { classify, validateNumber, type MediaSlot } from '../lib/schema'
 import { isVisible } from '../lib/visibility'
+import { outputSpec } from '../m3ds/registry'
 import { noteRecent, usePrefs } from '../state/prefs'
 import { useWorkflows } from '../state/useWorkflows'
 
@@ -123,6 +124,7 @@ export default function Chat() {
       imageUrl: source.initImageUrl ?? Object.values(source.placeholders ?? {})[0],
       source,
       nsfw: workflow.is_nsfw === true,
+      output: outputSpec(workflow, prefs.outputOverrides) ?? undefined,
     })
     setForm({ prompt: '' })
   }

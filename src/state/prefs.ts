@@ -1,10 +1,12 @@
 import { useSyncExternalStore } from 'react'
 import { idbStore } from '../jobs/store'
+import type { Overrides } from '../m3ds/registry'
 
 export interface Prefs {
   blurNsfw: boolean // default ON: media is blurred until tapped
   showAdult: boolean // default OFF: adult (is_nsfw) workflows are hidden everywhere
   imageHost: 'none' | 'catbox' // where local photos are uploaded so Graydient can fetch them
+  outputOverrides: Overrides // per-workflow result type (M3DS etc.), set by the user
   catboxUserhash: string // the user's own Catbox account hash (optional; anonymous uploads work)
   theme: 'dark' | 'light'
   favorites: string[] // workflow slugs
@@ -17,6 +19,7 @@ const DEFAULTS: Prefs = {
   showAdult: false,
   imageHost: 'none',
   catboxUserhash: '',
+  outputOverrides: {},
   theme: 'dark',
   favorites: [],
   recents: [],

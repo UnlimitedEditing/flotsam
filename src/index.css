@@ -386,3 +386,67 @@ audio.media {
   padding: 6px 12px;
   border-radius: 8px;
 }
+
+/* M3DS viewers */
+.view-result {
+  margin: 8px 0;
+}
+.grid.carrier {
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  opacity: 0.7;
+}
+.m3ds-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: max(16px, env(safe-area-inset-top)) 16px 8px;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+  color: var(--fg);
+}
+.m3ds-title {
+  margin: 0 0 8px;
+  color: var(--fg);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 1.1rem;
+}
+.model-host {
+  width: 100%;
+  height: 55vh;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.textview {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  overflow: auto;
+  max-height: 60vh;
+  font-size: 0.8rem;
+  white-space: pre;
+}
+.textview.wrap {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.result-type {
+  display: block;
+  margin: 8px 0;
+}
+.result-type select {
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--fg);
+  font: inherit;
+}
+.m3ds-panel {
+  background: var(--bg);
+}

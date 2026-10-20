@@ -48,3 +48,14 @@ export function isVideo(url: string, mediaType?: string | null): boolean {
 export function isAudio(url: string, mediaType?: string | null): boolean {
   return (mediaType ?? '').includes('audio') || /\.(mp3|wav|ogg|flac|m4a)(\?|$)/i.test(url)
 }
+
+/** Saves in-memory bytes (e.g. a decoded M3DS payload) as a file. Only runs on an explicit Save tap. */
+export function saveBytes(filename: string, data: Uint8Array, mime = 'application/octet-stream'): void {
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([data as BlobPart], { type: mime }))
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(a.href), 10_000)
+}

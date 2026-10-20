@@ -98,6 +98,7 @@ export class JobEngine {
       imageUrl: j.imageUrl,
       source: j.source,
       nsfw: j.nsfw,
+      output: j.output,
     })
   }
 

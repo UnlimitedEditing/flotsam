@@ -1,4 +1,5 @@
 import type { ResolvedMedia, SourceMedia } from '../api/types'
+import type { OutputSpec } from '../m3ds/registry'
 
 export type JobStatus = 'queued' | 'submitting' | 'running' | 'done' | 'failed' | 'canceled'
 
@@ -12,6 +13,7 @@ export interface Job {
   prompt: string // user-visible text
   command: string // full slash-command string actually sent
   imageUrl?: string // preview of the main input image
+  output?: OutputSpec // declared result carrier (e.g. M3DS), so the right viewer opens on demand
   nsfw?: boolean // the workflow is flagged adult: its media is always blurred until tapped
   source?: SourceMedia // everything sent alongside the command (init media, placeholders)
   status: JobStatus
@@ -24,7 +26,7 @@ export interface Job {
 
 export type NewJob = Pick<
   Job,
-  'workflowSlug' | 'workflowName' | 'prompt' | 'command' | 'imageUrl' | 'source' | 'nsfw'
+  'workflowSlug' | 'workflowName' | 'prompt' | 'command' | 'imageUrl' | 'source' | 'nsfw' | 'output'
 >
 
 export const ACTIVE: JobStatus[] = ['submitting', 'running']

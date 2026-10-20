@@ -1,20 +1,43 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Workflow } from '../api/types'
-import { classify } from '../lib/schema'
+import { classify, outputKinds, type OutputKind } from '../lib/schema'
 import { visibleWorkflows } from '../lib/visibility'
-import { noteRecent, toggleFavorite, usePrefs } from '../state/prefs'
+import { EXPECT_LABELS, outputSpec, type Expect, type Overrides } from '../m3ds/registry'
+import { noteRecent, setPrefs, toggleFavorite, usePrefs } from '../state/prefs'
 import { useWorkflows } from '../state/useWorkflows'
 
+const KIND_LABEL: Record<OutputKind, string> = {
+  image: 'image',
+  video: 'video',
+  audio: 'audio',
+  mesh: '3D mesh',
+  text: 'text',
+}
+
 function kinds(w: Workflow): string {
-  const k: string[] = []
-  if (w.supports_txt2img) k.push('text→image')
-  if (w.supports_img2img) k.push('image→image')
-  if (w.supports_txt2vid) k.push('text→video')
-  if (w.supports_img2vid) k.push('image→video')
-  if (w.supports_vid2vid) k.push('video→video')
-  if (w.supports_txt2wav) k.push('audio')
-  return k.join(' · ')
+  return outputKinds(w)
+    .map((k) => KIND_LABEL[k])
+    .join(' · ')
+}
+
+function autoLabel(w: Workflow): string {
+  const s = outputSpec(w)
+  return s ? `M3DS: ${EXPECT_LABELS[s.expect]}` : 'ordinary media'
+}
+
+function resultValue(w: Workflow, o: Overrides): string {
+  if (!Object.prototype.hasOwnProperty.call(o, w.slug)) return 'auto'
+  const v = o[w.slug]
+  return v ? `${v.carrier}:${v.expect}` : 'none'
+}
+
+function withResultType(o: Overrides, slug: string, value: string): Overrides {
+  const next = { ...o }
+  if (value === 'auto') delete next[slug]
+  else if (value === 'none') next[slug] = null
+  else next[slug] = { carrier: 'm3ds', expect: value.split(':')[1] as Expect }
+  return next
 }
 
 function inputsSummary(w: Workflow): string {
@@ -29,7 +52,7 @@ function inputsSummary(w: Workflow): string {
 
 export default function Workflows() {
   const { workflows, loading, error, refresh } = useWorkflows()
-  const { favorites, recents, showAdult } = usePrefs()
+  const { favorites, recents, showAdult, outputOverrides } = usePrefs()
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const navigate = useNavigate()
@@ -64,6 +87,23 @@ export default function Workflows() {
         <div className="wf-detail">
           {w.description && <p>{w.description}</p>}
           <p className="muted">{inputsSummary(w)}</p>
+          <label className="result-type">
+            <span className="muted">Result type</span>
+            <select
+              value={resultValue(w, outputOverrides)}
+              onChange={(e) =>
+                setPrefs({ outputOverrides: withResultType(outputOverrides, w.slug, e.target.value) })
+              }
+            >
+              <option value="auto">Auto ({autoLabel(w)})</option>
+              <option value="none">Ordinary images / video / audio</option>
+              {(Object.keys(EXPECT_LABELS) as Expect[]).map((k) => (
+                <option key={k} value={`m3ds:${k}`}>
+                  M3DS: {EXPECT_LABELS[k]}
+                </option>
+              ))}
+            </select>
+          </label>
           {w.avg_elapsed ? <p className="muted">Typical run: {Math.round(w.avg_elapsed)}s</p> : null}
         </div>
       )}

@@ -1,0 +1,120 @@
+import { lazy, Suspense, useEffect, useState } from 'react'
+import type { ResolvedMedia } from '../api/types'
+import { saveBytes } from '../lib/save'
+import {
+  assemble,
+  hasM3dsHeader,
+  M3dsError,
+  parseChunk,
+  pngToRgb,
+  progress,
+  type Chunk,
+  type Decoded,
+} from './codec'
+import { EXPECT_LABELS, mismatchNote, viewerKind, type OutputSpec } from './registry'
+
+const ModelViewer = lazy(() => import('./viewers/ModelViewer'))
+const TextViewer = lazy(() => import('./viewers/TextViewer'))
+const FileInfo = lazy(() => import('./viewers/FileInfo'))
+
+type State =
+  | { phase: 'loading'; step: string }
+  | { phase: 'error'; message: string }
+  | { phase: 'ready'; decoded: Decoded }
+
+const isPixelMedia = (m: ResolvedMedia) => !/\.(mp4|webm|mov|mp3|wav|ogg|flac|m4a)(\?|$)/i.test(m.url)
+
+/** Reads the job's PNGs, collects M3DS chunks (a big file spans several images) and assembles them. */
+async function decodeMedia(
+  media: ResolvedMedia[],
+  signal: AbortSignal,
+  step: (s: string) => void,
+): Promise<Decoded> {
+  const chunks: Chunk[] = []
+  const candidates = media.filter(isPixelMedia)
+  for (let i = 0; i < candidates.length; i++) {
+    step(`Reading image ${i + 1} of ${candidates.length}`)
+    let blob: Blob
+    try {
+      const res = await fetch(candidates[i].url, { signal })
+      if (!res.ok) throw new Error(String(res.status))
+      blob = await res.blob()
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') throw e
+      throw new M3dsError('Could not download the image. The host may block reading it from this app.')
+    }
+    const rgb = await pngToRgb(blob)
+    if (hasM3dsHeader(rgb)) chunks.push(parseChunk(rgb))
+  }
+  if (chunks.length === 0) throw new M3dsError('These images do not contain M3DS data.')
+  const p = progress(chunks)
+  if (p.have < p.need)
+    throw new M3dsError(
+      `Only ${p.have} of ${p.need} image parts were found. The rest are needed to open this file.`,
+    )
+  step('Unpacking')
+  return assemble(chunks)
+}
+
+interface Props {
+  media: ResolvedMedia[]
+  spec: OutputSpec
+  title?: string
+  onClose: () => void
+}
+
+export default function M3dsPanel({ media, spec, title, onClose }: Props) {
+  const [state, setState] = useState<State>({ phase: 'loading', step: 'Starting' })
+
+  useEffect(() => {
+    const ctl = new AbortController()
+    if (spec.carrier !== 'm3ds') return
+    decodeMedia(media, ctl.signal, (step) => setState({ phase: 'loading', step }))
+      .then((decoded) => setState({ phase: 'ready', decoded }))
+      .catch((e: Error) => {
+        if (e.name !== 'AbortError') setState({ phase: 'error', message: e.message })
+      })
+    return () => ctl.abort()
+  }, [media, spec.carrier])
+
+  const decoded = state.phase === 'ready' ? state.decoded : null
+  const kind = decoded ? viewerKind(decoded.filename, decoded.data, spec.expect) : null
+  const note = decoded && kind ? mismatchNote(spec.expect, kind, decoded.filename) : null
+
+  return (
+    <div className="lightbox m3ds-panel" role="dialog" aria-modal="true">
+      <div className="m3ds-body">
+        <h2 className="m3ds-title">{title ?? EXPECT_LABELS[spec.expect]}</h2>
+        {spec.carrier === 'pixeldata' && (
+          <p className="muted">
+            This result uses the pixel-data image format (JSON written straight into pixels). Flotsam cannot
+            decode that format yet.
+          </p>
+        )}
+        {spec.carrier === 'm3ds' && state.phase === 'loading' && <p className="muted">{state.step}…</p>}
+        {state.phase === 'error' && <p className="error">{state.message}</p>}
+        {decoded && kind && (
+          <>
+            {note && <p className="muted">{note}</p>}
+            {decoded.chunks > 1 && <p className="muted">Assembled from {decoded.chunks} images.</p>}
+            <Suspense fallback={<p className="muted">Loading viewer…</p>}>
+              {kind === 'model' && <ModelViewer filename={decoded.filename} data={decoded.data} />}
+              {kind === 'text' && <TextViewer filename={decoded.filename} data={decoded.data} />}
+              {kind === 'info' && <FileInfo filename={decoded.filename} data={decoded.data} />}
+            </Suspense>
+          </>
+        )}
+      </div>
+      <div className="lb-bar">
+        {decoded && (
+          <button onClick={() => saveBytes(decoded.filename, decoded.data)}>
+            Save {decoded.filename.length > 24 ? 'file' : decoded.filename}
+          </button>
+        )}
+        <button className="ghost" onClick={onClose}>
+          Close
+        </button>
+      </div>
+    </div>
+  )
+}
