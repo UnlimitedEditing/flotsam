@@ -7,7 +7,12 @@ import { ACTIVE, isFinished, type Job, type NewJob } from './types'
 export interface RenderApi {
   submitRender(
     prompt: string,
-    opts: { sourceMedia?: SourceMedia; signal?: AbortSignal; onEvent?: (e: StreamEvent) => void },
+    opts: {
+      sourceMedia?: SourceMedia
+      signal?: AbortSignal
+      onEvent?: (e: StreamEvent) => void
+      jobId?: string
+    },
   ): Promise<{
     renderHash: string | null
     estimatedRenderTime: number | null
@@ -125,19 +130,25 @@ export class JobEngine {
 
   // ── internals ──
 
+  private toResume = new Set<string>()
+
   private async restore(): Promise<void> {
     const saved = await this.store.read<Job[]>(STORE_KEY, [])
-    // A job that was mid-flight when the page closed cannot be re-attached unless we have its render hash.
-    this.jobs = saved.map((j) =>
-      ACTIVE.includes(j.status)
-        ? {
-            ...j,
-            status: 'failed' as const,
-            error: 'Interrupted (app closed). Check the Graydient app for this render.',
-            finishedAt: this.now(),
-          }
-        : j,
-    )
+    // A render that was in flight when the app closed can be picked up again if we know its render hash:
+    // Graydient keeps running it, so we just keep waiting for the result. Without a hash it cannot be found.
+    this.jobs = saved.map((j) => {
+      if (!ACTIVE.includes(j.status)) return j
+      if (j.renderHash) {
+        this.toResume.add(j.id)
+        return { ...j, status: 'running' as const }
+      }
+      return {
+        ...j,
+        status: 'failed' as const,
+        error: 'Interrupted (app closed before the render was accepted). Check the Graydient app.',
+        finishedAt: this.now(),
+      }
+    })
     this.emit()
     void this.pump()
   }
@@ -159,12 +170,18 @@ export class JobEngine {
 
   private async pump(): Promise<void> {
     if (this.active || !this.gate()) return
-    const next = [...this.jobs].reverse().find((j) => j.status === 'queued') // oldest first
+    const resumable = this.jobs.find((j) => this.toResume.has(j.id) && j.status === 'running')
+    const next = resumable ?? [...this.jobs].reverse().find((j) => j.status === 'queued') // oldest first
     if (!next) return
     const abort = new AbortController()
     this.active = { id: next.id, abort }
     try {
-      await this.run(next, abort.signal)
+      if (resumable) {
+        this.toResume.delete(resumable.id)
+        await this.resumeRun(resumable, abort.signal)
+      } else {
+        await this.run(next, abort.signal)
+      }
     } finally {
       this.active = null
       void this.pump()
@@ -180,6 +197,7 @@ export class JobEngine {
       const submitted = await this.api.submitRender(job.command, {
         sourceMedia,
         signal,
+        jobId: id,
         onEvent: (e) => {
           if (e.name === 'render_queued') {
             this.patch(id, {
@@ -196,23 +214,48 @@ export class JobEngine {
       const hash = submitted.renderHash ?? this.jobs.find((j) => j.id === id)?.renderHash ?? null
       if (hash) this.patch(id, { renderHash: hash, status: 'running' })
 
-      let media = this.api.resolveAllMedia(submitted.images ?? undefined)
-      if (!media.length && hash) {
-        media = this.api.resolveAllMedia(
-          (await this.api.waitForRenderEvent(hash, WS_WINDOW_MS, signal)) ?? undefined,
-        )
-      }
-      if (!media.length && hash) media = await this.api.pollRenderMedia(hash, { signal })
-      if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
-      if (!media.length)
-        throw new Error(hash ? 'Render finished but returned no media.' : 'No render id was returned.')
-      this.patch(id, { status: 'done', media, finishedAt: this.now() })
+      await this.complete(id, hash, submitted.images ?? undefined, signal)
     } catch (e) {
-      if (signal.aborted || (e as Error).name === 'AbortError') {
-        this.patch(id, { status: 'canceled', finishedAt: this.now() })
-      } else {
-        this.patch(id, { status: 'failed', error: (e as Error).message, finishedAt: this.now() })
-      }
+      this.fail(id, e, signal)
+    }
+  }
+
+  /** Waits for a render we already know about (after an app restart): no new submit. */
+  private async resumeRun(job: Job, signal: AbortSignal): Promise<void> {
+    const id = job.id
+    try {
+      await this.complete(id, job.renderHash ?? null, undefined, signal)
+    } catch (e) {
+      this.fail(id, e, signal)
+    }
+  }
+
+  /** Shared ending: images from the stream, else the WebSocket, else polling; then record the outcome. */
+  private async complete(
+    id: string,
+    hash: string | null,
+    images: RenderImage[] | undefined,
+    signal: AbortSignal,
+  ): Promise<void> {
+    let media = this.api.resolveAllMedia(images)
+    if (!media.length && hash) {
+      media = this.api.resolveAllMedia(
+        (await this.api.waitForRenderEvent(hash, WS_WINDOW_MS, signal)) ?? undefined,
+      )
+    }
+    if (!media.length && hash) media = await this.api.pollRenderMedia(hash, { signal })
+    if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
+    if (!media.length) {
+      throw new Error(hash ? 'Render finished but returned no media.' : 'No render id was returned.')
+    }
+    this.patch(id, { status: 'done', media, finishedAt: this.now() })
+  }
+
+  private fail(id: string, e: unknown, signal: AbortSignal): void {
+    if (signal.aborted || (e as Error).name === 'AbortError') {
+      this.patch(id, { status: 'canceled', finishedAt: this.now() })
+    } else {
+      this.patch(id, { status: 'failed', error: (e as Error).message, finishedAt: this.now() })
     }
   }
 }

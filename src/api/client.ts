@@ -1,3 +1,6 @@
+import { FlotsamNative } from '../native/plugin'
+import { isNative } from '../native/platform'
+import { createNativeFetch, type TransportFetch, type TransportOptions } from '../native/transport'
 import { getApiKey } from './storage'
 import { createLineBuffer, parseStreamLine, type StreamEvent } from './stream'
 import type { RenderImage, RenderInfo, ResolvedMedia, SourceMedia, Workflow } from './types'
@@ -5,7 +8,16 @@ import type { RenderImage, RenderInfo, ResolvedMedia, SourceMedia, Workflow } fr
 // Dev uses the Vite proxy ('/gd/'). Production needs VITE_API_BASE pointing at the CORS proxy Worker
 // (PWA) or a native HTTP client (Capacitor), because the real API sends no CORS headers.
 export const DEFAULT_BASE = import.meta.env.DEV ? '/gd/' : 'https://app.graydient.ai/api/v3/'
-const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? DEFAULT_BASE
+// The Android app calls Graydient directly through the native plugin (no CORS), so it ignores the web proxy.
+const NATIVE_BASE = 'https://app.graydient.ai/api/v3/'
+const BASE = isNative()
+  ? NATIVE_BASE
+  : ((import.meta.env.VITE_API_BASE as string | undefined) ?? DEFAULT_BASE)
+
+// Web: the browser's fetch (looked up at call time). Android: the Kotlin plugin wrapped to look like fetch.
+const platformFetch: TransportFetch = isNative()
+  ? createNativeFetch(FlotsamNative)
+  : (url, init) => fetch(url, init)
 // WebSockets are not subject to CORS, so they always go straight to Graydient.
 const WS_BASE = (import.meta.env.VITE_WS_BASE as string | undefined) ?? 'wss://app.graydient.ai'
 const API_ORIGIN = 'https://app.graydient.ai'
@@ -43,15 +55,15 @@ export class ApiError extends Error {
   }
 }
 
-async function request(path: string, init: RequestInit = {}): Promise<Response> {
+async function request(path: string, init: RequestInit = {}, opts: TransportOptions = {}): Promise<Response> {
   if (!consentOk()) throw new GateError()
   let res: Response
   try {
-    res = await fetch(`${BASE}${path}`, {
-      cache: 'no-store',
-      ...init,
-      headers: { ...headers(), ...init.headers },
-    })
+    res = await platformFetch(
+      `${BASE}${path}`,
+      { cache: 'no-store', ...init, headers: { ...headers(), ...init.headers } },
+      opts,
+    )
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw e
     // A network-level TypeError from a browser is most often a CORS block.
@@ -141,7 +153,12 @@ export interface SubmitResult {
  */
 export async function submitRender(
   prompt: string,
-  opts: { sourceMedia?: SourceMedia; signal?: AbortSignal; onEvent?: (e: StreamEvent) => void } = {},
+  opts: {
+    sourceMedia?: SourceMedia
+    signal?: AbortSignal
+    onEvent?: (e: StreamEvent) => void
+    jobId?: string // lets the Android app keep watching this render in the background
+  } = {},
 ): Promise<SubmitResult> {
   const body: Record<string, unknown> = {
     prompt: prompt.trim(),
@@ -161,12 +178,16 @@ export async function submitRender(
   if (s?.initAudioUrl) body.init_audio_url = s.initAudioUrl
   if (s?.initMeshUrl) body.init_mesh_url = s.initMeshUrl
 
-  const res = await request('render/', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal: opts.signal,
-  })
+  const res = await request(
+    'render/',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: opts.signal,
+    },
+    { stream: true, jobId: opts.jobId },
+  )
   if (!res.body) throw new ApiError('render/ returned no stream')
 
   const result: SubmitResult = {

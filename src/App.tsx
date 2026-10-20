@@ -1,6 +1,5 @@
-import { useState } from 'react'
 import { HashRouter, NavLink, Route, Routes } from 'react-router-dom'
-import { getApiKey } from './api/storage'
+import { useSignedIn } from './api/storage'
 import Chat from './screens/Chat'
 import Gallery from './screens/Gallery'
 import Gate from './screens/Gate'
@@ -63,7 +62,7 @@ export default function App() {
   const ready = useBootstrapReady()
   const consented = useConsentValid()
   const locked = useLocked()
-  const [signedIn, setSignedIn] = useState(!!getApiKey())
+  const signedIn = useSignedIn()
   useApplyDiscreet()
 
   // Order: stored state loads (nothing shown), then the gate, then key entry, then the app.
@@ -73,8 +72,8 @@ export default function App() {
     // A locked app renders only the lock screen: no app content is in the DOM behind it.
     if (locked) screen = <LockScreen />
     else if (!consented) screen = <Gate />
-    else if (!signedIn) screen = <Login onDone={() => setSignedIn(true)} />
-    else screen = <Shell onSignOut={() => setSignedIn(false)} />
+    else if (!signedIn) screen = <Login onDone={() => {}} />
+    else screen = <Shell onSignOut={() => {}} />
   }
   return (
     <>
