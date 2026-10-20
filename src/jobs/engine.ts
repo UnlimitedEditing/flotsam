@@ -97,6 +97,7 @@ export class JobEngine {
       command: j.command,
       imageUrl: j.imageUrl,
       source: j.source,
+      nsfw: j.nsfw,
     })
   }
 

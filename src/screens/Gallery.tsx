@@ -14,7 +14,7 @@ export default function Gallery() {
       jobs
         .filter((j) => j.status === 'done')
         .sort((a, b) => (b.finishedAt ?? 0) - (a.finishedAt ?? 0))
-        .flatMap((j) => j.media.map((m, i) => ({ jobId: j.id, i, m }))),
+        .flatMap((j) => j.media.map((m, i) => ({ jobId: j.id, i, m, nsfw: !!j.nsfw }))),
     [jobs],
   )
   const [open, setOpen] = useState<number | null>(null)
@@ -26,7 +26,7 @@ export default function Gallery() {
       {items.length === 0 && <p className="muted">Finished renders appear here.</p>}
       <div className="grid">
         {items.map((it, idx) => (
-          <MediaThumb key={it.m.url} media={it.m} onOpen={() => setOpen(idx)} />
+          <MediaThumb key={it.m.url} media={it.m} forceBlur={it.nsfw} onOpen={() => setOpen(idx)} />
         ))}
       </div>
       {cur && (

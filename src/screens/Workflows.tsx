@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Workflow } from '../api/types'
 import { classify } from '../lib/schema'
+import { visibleWorkflows } from '../lib/visibility'
 import { noteRecent, toggleFavorite, usePrefs } from '../state/prefs'
 import { useWorkflows } from '../state/useWorkflows'
 
@@ -28,18 +29,19 @@ function inputsSummary(w: Workflow): string {
 
 export default function Workflows() {
   const { workflows, loading, error, refresh } = useWorkflows()
-  const { favorites, recents } = usePrefs()
+  const { favorites, recents, showAdult } = usePrefs()
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const navigate = useNavigate()
 
-  const bySlug = useMemo(() => new Map(workflows.map((w) => [w.slug, w])), [workflows])
+  const visible = useMemo(() => visibleWorkflows(workflows, showAdult), [workflows, showAdult])
+  const bySlug = useMemo(() => new Map(visible.map((w) => [w.slug, w])), [visible])
   const matches = useMemo(() => {
     const t = q.trim().toLowerCase()
     return t
-      ? workflows.filter((w) => `${w.name} ${w.slug} ${w.description ?? ''}`.toLowerCase().includes(t))
-      : workflows
-  }, [workflows, q])
+      ? visible.filter((w) => `${w.name} ${w.slug} ${w.description ?? ''}`.toLowerCase().includes(t))
+      : visible
+  }, [visible, q])
 
   const pick = (w: Workflow) => {
     noteRecent(w.slug)
@@ -81,7 +83,10 @@ export default function Workflows() {
         <button className="ghost" onClick={() => void refresh()} disabled={loading}>
           {loading ? 'Loading…' : 'Refresh'}
         </button>
-        <span className="muted">{workflows.length} workflows</span>
+        <span className="muted">
+          {visible.length} workflows
+          {workflows.length !== visible.length ? ` (${workflows.length - visible.length} adult hidden)` : ''}
+        </span>
       </div>
       {error && <p className="error">{error}</p>}
       {!q && favs.length > 0 && (

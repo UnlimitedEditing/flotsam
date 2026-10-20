@@ -10,12 +10,13 @@ interface Props {
   media: ResolvedMedia
   onOpen?: () => void
   controls?: boolean
+  forceBlur?: boolean // adult workflow output: blurred even if the global toggle is off
 }
 
-export default function MediaThumb({ media, onOpen, controls }: Props) {
+export default function MediaThumb({ media, onOpen, controls, forceBlur }: Props) {
   const { blurNsfw } = usePrefs()
   const [, bump] = useState(0)
-  const hidden = blurNsfw && !revealed.has(media.url)
+  const hidden = (blurNsfw || !!forceBlur) && !revealed.has(media.url)
   const video = isVideo(media.url, media.mediaType)
 
   if (isAudio(media.url, media.mediaType)) {

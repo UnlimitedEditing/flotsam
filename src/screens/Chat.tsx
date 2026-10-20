@@ -7,6 +7,7 @@ import { InvalidImageUrlError, NeedsImageHostError } from '../images/types'
 import { engine, useJobs } from '../jobs/instance'
 import { buildRequest, emptyForm, missingRequired, unsupportedSlots, type FormValues } from '../lib/command'
 import { classify, validateNumber, type MediaSlot } from '../lib/schema'
+import { isVisible } from '../lib/visibility'
 import { noteRecent, usePrefs } from '../state/prefs'
 import { useWorkflows } from '../state/useWorkflows'
 
@@ -28,7 +29,10 @@ export default function Chat() {
   const location = useLocation()
 
   const slug = params.get('wf') ?? prefs.lastWorkflow ?? ''
-  const workflow = useMemo(() => workflows.find((w) => w.slug === slug), [workflows, slug])
+  const workflow = useMemo(
+    () => workflows.find((w) => w.slug === slug && isVisible(w, prefs.showAdult)),
+    [workflows, slug, prefs.showAdult],
+  )
   const schema = useMemo(() => (workflow ? classify(workflow) : null), [workflow])
 
   const [formBySlug, setFormBySlug] = useState<Record<string, FormValues>>({})
@@ -113,6 +117,7 @@ export default function Chat() {
       command,
       imageUrl: source.initImageUrl ?? Object.values(source.placeholders ?? {})[0],
       source,
+      nsfw: workflow.is_nsfw === true,
     })
     setForm({ prompt: '' })
   }

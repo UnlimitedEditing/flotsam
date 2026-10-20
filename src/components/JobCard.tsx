@@ -35,7 +35,7 @@ export default function JobCard({
       {job.media.length > 0 && (
         <div className="grid">
           {job.media.map((m, i) => (
-            <MediaThumb key={m.url} media={m} onOpen={() => onOpen?.(job.id, i)} />
+            <MediaThumb key={m.url} media={m} forceBlur={job.nsfw} onOpen={() => onOpen?.(job.id, i)} />
           ))}
         </div>
       )}

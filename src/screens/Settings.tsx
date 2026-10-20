@@ -37,6 +37,14 @@ export default function Settings({ onSignOut }: { onSignOut: () => void }) {
         />
         <span>Blur media until tapped</span>
       </label>
+      <label className="toggle">
+        <input
+          type="checkbox"
+          checked={prefs.showAdult}
+          onChange={(e) => setPrefs({ showAdult: e.target.checked })}
+        />
+        <span>Show adult workflows (their results are always blurred until tapped)</span>
+      </label>
 
       <h2>Appearance</h2>
       <div className="row">

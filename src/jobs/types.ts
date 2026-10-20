@@ -12,6 +12,7 @@ export interface Job {
   prompt: string // user-visible text
   command: string // full slash-command string actually sent
   imageUrl?: string // preview of the main input image
+  nsfw?: boolean // the workflow is flagged adult: its media is always blurred until tapped
   source?: SourceMedia // everything sent alongside the command (init media, placeholders)
   status: JobStatus
   renderHash?: string
@@ -21,7 +22,10 @@ export interface Job {
   error?: string
 }
 
-export type NewJob = Pick<Job, 'workflowSlug' | 'workflowName' | 'prompt' | 'command' | 'imageUrl' | 'source'>
+export type NewJob = Pick<
+  Job,
+  'workflowSlug' | 'workflowName' | 'prompt' | 'command' | 'imageUrl' | 'source' | 'nsfw'
+>
 
 export const ACTIVE: JobStatus[] = ['submitting', 'running']
 export const isFinished = (s: JobStatus) => s === 'done' || s === 'failed' || s === 'canceled'

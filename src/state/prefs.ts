@@ -3,13 +3,14 @@ import { idbStore } from '../jobs/store'
 
 export interface Prefs {
   blurNsfw: boolean // default ON: media is blurred until tapped
+  showAdult: boolean // default OFF: adult (is_nsfw) workflows are hidden everywhere
   theme: 'dark' | 'light'
   favorites: string[] // workflow slugs
   recents: string[] // workflow slugs, newest first
   lastWorkflow?: string
 }
 
-const DEFAULTS: Prefs = { blurNsfw: true, theme: 'dark', favorites: [], recents: [] }
+const DEFAULTS: Prefs = { blurNsfw: true, showAdult: false, theme: 'dark', favorites: [], recents: [] }
 const KEY = 'prefs.v1'
 
 let state: Prefs = DEFAULTS
