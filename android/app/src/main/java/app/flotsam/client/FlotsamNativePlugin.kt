@@ -386,6 +386,94 @@ class FlotsamNativePlugin : Plugin() {
         call.resolve()
     }
 
+    // ── Self-update ─────────────────────────────────────────────────────────────────────────────────────
+
+    private val updater by lazy { AppUpdater(context) }
+
+    private fun updateState(error: String? = null, checked: Boolean = false): JSObject {
+        val installed = updater.installed()
+        val m = updater.cachedManifest()
+        val o = JSObject()
+            .put("enabled", updater.enabled)
+            .put("installedCode", installed.code)
+            .put("installedName", installed.name)
+            .put("lastCheck", updater.lastCheck())
+            .put("checked", checked)
+            .put("decision", updater.decision()?.name?.lowercase() ?: "none")
+            .put("error", error ?: "")
+        if (m != null) {
+            o.put(
+                "manifest",
+                JSObject().put("versionCode", m.versionCode).put("versionName", m.versionName).put("notes", m.notes)
+                    .put("size", m.size ?: 0L),
+            )
+        }
+        return o
+    }
+
+    /** Cached state, no network. Used at startup so a forced update blocks even offline. */
+    @PluginMethod
+    fun updateStatus(call: PluginCall) {
+        updater.purgeStaleIfCurrent()
+        call.resolve(updateState())
+    }
+
+    /** Checks version.json. With `auto` it respects the once-a-day limit; otherwise it always asks. */
+    @PluginMethod
+    fun updateCheck(call: PluginCall) {
+        if (!updater.enabled) return call.resolve(updateState())
+        val auto = call.getBoolean("auto", false) == true
+        if (auto && !UpdateThrottle.shouldCheck(updater.lastCheck(), System.currentTimeMillis())) {
+            return call.resolve(updateState())
+        }
+        io.execute {
+            try {
+                updater.check()
+                call.resolve(updateState(checked = true))
+            } catch (e: UpdateError) {
+                call.resolve(updateState(error = e.message)) // keep the cached decision; report why the check failed
+            }
+        }
+    }
+
+    /** Downloads and verifies the update, emitting "updateProgress" as it goes. */
+    @PluginMethod
+    fun updateDownload(call: PluginCall) {
+        io.execute {
+            try {
+                val file = updater.download { done, total ->
+                    notifyListeners("updateProgress", JSObject().put("done", done).put("total", total ?: 0L))
+                }
+                call.resolve(JSObject().put("ready", true).put("size", file.length()))
+            } catch (e: UpdateError) {
+                call.reject(e.message)
+            } catch (e: Exception) {
+                call.reject("The update could not be downloaded.")
+            }
+        }
+    }
+
+    @PluginMethod
+    fun updateInstall(call: PluginCall) {
+        val apk = updater.readyFile() ?: return call.reject("No verified update is ready. Download it first.")
+        if (!updater.canInstallUnknown()) return call.resolve(JSObject().put("needsPermission", true))
+        io.execute {
+            try {
+                updater.install(apk)
+                call.resolve(JSObject().put("started", true))
+            } catch (e: Exception) {
+                call.reject(e.message ?: "Could not start the installation.")
+            }
+        }
+    }
+
+    /** Opens Android's "install unknown apps" screen for this app. */
+    @PluginMethod
+    fun updateOpenInstallSettings(call: PluginCall) {
+        context.startActivity(updater.unknownSourcesIntent())
+        call.resolve()
+    }
+
     // ── Share-in ────────────────────────────────────────────────────────────────────────────────────────
 
     @PluginMethod
@@ -412,6 +500,11 @@ class FlotsamNativePlugin : Plugin() {
     companion object {
         @Volatile private var instance: FlotsamNativePlugin? = null
         private val worker = Executors.newSingleThreadExecutor()
+
+        /** Called by UpdateReceiver when Android reports that installing the update failed. */
+        fun reportUpdateFailure(message: String) {
+            instance?.notifyListeners("updateFailed", JSObject().put("message", message))
+        }
 
         /** Called by MainActivity when an image is shared into the app. */
         fun handleShare(context: Context, intent: android.content.Intent?) {

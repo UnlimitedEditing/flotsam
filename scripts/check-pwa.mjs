@@ -41,7 +41,12 @@ out.caches = await page.evaluate(async () => {
   return res
 })
 const allCached = Object.values(out.caches).flat()
-out.cachedNonShell = allCached.filter((u) => /gd\/|modeltrends|amazonaws|definitely-not|\.(png|jpg|jpeg|webp|mp4|glb)$/.test(u) && !u.startsWith('/icons/') && !u.startsWith('/apple'))
+out.cachedNonShell = allCached.filter(
+  (u) =>
+    /gd\/|modeltrends|amazonaws|definitely-not|\.(png|jpg|jpeg|webp|mp4|glb)$/.test(u) &&
+    !u.startsWith('/icons/') &&
+    !u.startsWith('/apple'),
+)
 out.cachedCount = allCached.length
 
 // Offline: the shell must still load and show the offline banner.
@@ -52,7 +57,8 @@ out.offline = await page.evaluate(() => ({
   title: document.title,
   banner: document.querySelector('.banner.offline')?.innerText ?? null,
   tabs: [...document.querySelectorAll('.tabs a')].map((a) => a.textContent),
-  sendDisabled: [...document.querySelectorAll('button')].find((b) => b.textContent === 'Send')?.disabled ?? null,
+  sendDisabled:
+    [...document.querySelectorAll('button')].find((b) => b.textContent === 'Send')?.disabled ?? null,
 }))
 await page.setOfflineMode(false)
 

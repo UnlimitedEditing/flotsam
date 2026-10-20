@@ -13,7 +13,11 @@ const out = {}
 await page.goto('http://localhost:5180/#/', { waitUntil: 'networkidle0' })
 await page.evaluate(() => (localStorage.clear(), indexedDB.deleteDatabase('keyval-store')))
 await page.reload({ waitUntil: 'networkidle0' })
-const click = (txt) => page.evaluate((t) => [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === t)?.click(), txt)
+const click = (txt) =>
+  page.evaluate(
+    (t) => [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === t)?.click(),
+    txt,
+  )
 const setv = (sel, v, i = 0) =>
   page.evaluate(
     (s, val, idx) => {

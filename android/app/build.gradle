@@ -1,6 +1,13 @@
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 
+// Release metadata comes from properties so CI can set it from the git tag (Phase 6):
+//   ./gradlew assembleRelease -Pflotsam.versionCode=12 -Pflotsam.versionName=1.3.0
+// flotsam.updateManifestUrl is where the app looks for version.json; empty disables the self-updater entirely.
+def flotsamVersionCode = (project.findProperty('flotsam.versionCode') ?: '1').toInteger()
+def flotsamVersionName = project.findProperty('flotsam.versionName') ?: '1.0.0'
+def flotsamUpdateUrl = project.findProperty('flotsam.updateManifestUrl') ?: ''
+
 android {
     namespace = "app.flotsam.client"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -8,14 +15,18 @@ android {
         applicationId "app.flotsam.client"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode flotsamVersionCode
+        versionName flotsamVersionName
+        buildConfigField "String", "UPDATE_MANIFEST_URL", "\"${flotsamUpdateUrl}\""
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
+    }
+    buildFeatures {
+        buildConfig = true
     }
     kotlinOptions {
         jvmTarget = '21'

@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!-- Self-update: lets the app ask Android to install a newer, verified build of itself. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:allowBackup="false"
@@ -77,6 +79,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity-alias>
+
+        <!-- Result of the self-update install session (see AppUpdater / UpdateReceiver). -->
+        <receiver android:name=".UpdateReceiver" android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
