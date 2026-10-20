@@ -13,6 +13,7 @@ export interface Prefs {
   privacyScreen: boolean // cover the UI whenever the app is not in the foreground (app switcher, glances)
   discreet: boolean // neutral name in the UI and in notifications
   lockTimeoutMin: number // PIN lock after this many minutes in the background (0 = immediately, -1 = never)
+  biometricUnlock: boolean // Android: offer fingerprint/face on the lock screen (the PIN always works too)
   catboxUserhash: string // the user's own Catbox account hash (optional; anonymous uploads work)
   theme: 'dark' | 'light'
   favorites: string[] // workflow slugs
@@ -30,6 +31,7 @@ export const DEFAULT_PREFS: Prefs = {
   privacyScreen: true,
   discreet: false,
   lockTimeoutMin: 1,
+  biometricUnlock: false,
   iosHintDismissed: false,
   modelTrendsIds: {},
   theme: 'dark',
@@ -51,6 +53,11 @@ export const prefsReady: Promise<void> = idbStore.read<Prefs>(KEY, DEFAULT_PREFS
   applyTheme(state.theme)
   listeners.forEach((l) => l())
 })
+
+export function onPrefsChange(cb: () => void): () => void {
+  listeners.add(cb)
+  return () => listeners.delete(cb)
+}
 
 export function getPrefs(): Prefs {
   return state

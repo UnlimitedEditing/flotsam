@@ -22,9 +22,11 @@ const hasPixelMedia = (job: Job) =>
 export default function JobCard({
   job,
   onOpen,
+  highlight,
 }: {
   job: Job
   onOpen?: (jobId: string, index: number) => void
+  highlight?: boolean
 }) {
   const finished = isFinished(job.status)
   const [panel, setPanel] = useState<OutputSpec | null>(null)
@@ -33,7 +35,7 @@ export default function JobCard({
   const canTry = job.status === 'done' && !declared && hasPixelMedia(job)
 
   return (
-    <article className={`job ${job.status}`}>
+    <article id={`job-${job.id}`} className={`job ${job.status}${highlight ? ' highlight' : ''}`}>
       <header>
         <strong>{job.workflowName}</strong>
         <span className="status">{LABEL[job.status]}</span>

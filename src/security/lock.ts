@@ -46,6 +46,12 @@ export function lockNow(): void {
   emit()
 }
 
+/** After a successful fingerprint/face check (done by the native layer). */
+export function unlockWithBiometric(): void {
+  locked = false
+  emit()
+}
+
 export async function unlock(pin: string): Promise<VerifyResult> {
   const r = await pinService.verify(pin)
   if (r.ok) {

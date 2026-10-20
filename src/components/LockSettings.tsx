@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { biometricAvailable } from '../native/biometric'
 import { isValidPin } from '../security/pin'
 import { lockNow, pinChanged, pinService, usePinSet } from '../security/lock'
 import { setPrefs, usePrefs } from '../state/prefs'
@@ -15,7 +16,11 @@ const TIMEOUTS: Array<[number, string]> = [
 
 export default function LockSettings() {
   const pinSet = usePinSet()
-  const { lockTimeoutMin } = usePrefs()
+  const { lockTimeoutMin, biometricUnlock } = usePrefs()
+  const [bioAvailable, setBioAvailable] = useState(false)
+  useEffect(() => {
+    void biometricAvailable().then(setBioAvailable)
+  }, [])
   const [mode, setMode] = useState<Mode>('idle')
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
@@ -79,6 +84,16 @@ export default function LockSettings() {
               Remove PIN
             </button>
           </div>
+          {bioAvailable && (
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={biometricUnlock}
+                onChange={(e) => setPrefs({ biometricUnlock: e.target.checked })}
+              />
+              <span>Unlock with fingerprint or face (the PIN still works)</span>
+            </label>
+          )}
           <label className="result-type">
             <span className="muted">Lock</span>
             <select

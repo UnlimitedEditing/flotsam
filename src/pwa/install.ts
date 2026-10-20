@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { isNative } from '../native/platform'
 
 // "Add to home screen". Chrome/Android fires `beforeinstallprompt`; iOS Safari has no prompt, so it gets a
 // one-time hint to use Share > Add to Home Screen.
@@ -26,6 +27,7 @@ export function installState(i: InstallInputs): InstallState {
 }
 
 export function isStandalone(): boolean {
+  if (isNative()) return true // the Android app is already installed; no install prompt or hint
   return (
     window.matchMedia?.('(display-mode: standalone)').matches ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true

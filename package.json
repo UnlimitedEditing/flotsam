@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vite build && vitest run",
-    "format": "prettier --write src"
+    "format": "prettier --write src",
+    "build:android": "vite build --mode android && cap sync android"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.2",

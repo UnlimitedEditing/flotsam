@@ -20,6 +20,11 @@ android {
     kotlinOptions {
         jvmTarget = '21'
     }
+    lint {
+        // local.properties is machine-local (written by the SDK tooling, git-ignored); on Windows its drive-letter
+        // path trips this check. Not a project file, so it must not fail the build.
+        disable += 'PropertyEscape'
+    }
     testOptions {
         unitTests.returnDefaultValues = true
     }

@@ -1,10 +1,14 @@
+import { resetKeyMemory } from '../api/storage'
 import { clearAllStored } from '../jobs/store'
+import { isNative } from '../native/platform'
+import { FlotsamNative } from '../native/plugin'
 import { resetConsentMemory } from '../state/consent'
 
 export interface WipeIO {
   clearLocal: () => void
   clearSession: () => void
   clearStored: () => Promise<void>
+  clearNative?: () => Promise<void>
   resetMemory: () => void
 }
 
@@ -12,6 +16,12 @@ const browserIO: WipeIO = {
   clearLocal: () => localStorage.clear(),
   clearSession: () => sessionStorage.clear(),
   clearStored: clearAllStored,
+  clearNative: async () => {
+    if (!isNative()) return
+    // Keystore-held API key, background watch-list, flags and any images shared in.
+    await FlotsamNative.clearAll().catch(() => {})
+    resetKeyMemory()
+  },
   resetMemory: resetConsentMemory,
 }
 
@@ -29,6 +39,7 @@ export async function clearAllData(io: WipeIO = browserIO): Promise<void> {
     }
   }
   await io.clearStored()
+  await io.clearNative?.()
   io.resetMemory()
 }
 

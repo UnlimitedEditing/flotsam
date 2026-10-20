@@ -6,6 +6,8 @@ import Gate from './screens/Gate'
 import Login from './screens/Login'
 import Queue from './screens/Queue'
 import Settings from './screens/Settings'
+import Share from './screens/Share'
+import NativeEvents from './native/NativeEvents'
 import Workflows from './screens/Workflows'
 import { OfflineBanner, UpdateBanner } from './components/Banners'
 import PrivacyCover from './components/PrivacyCover'
@@ -41,6 +43,7 @@ function Shell({ onSignOut }: { onSignOut: () => void }) {
   return (
     <HashRouter>
       <div className="shell">
+        <NativeEvents />
         <UpdateBanner />
         <OfflineBanner />
         <div className="view">
@@ -49,6 +52,7 @@ function Shell({ onSignOut }: { onSignOut: () => void }) {
             <Route path="/workflows" element={<Workflows />} />
             <Route path="/queue" element={<Queue />} />
             <Route path="/gallery" element={<Gallery />} />
+            <Route path="/share" element={<Share />} />
             <Route path="/settings" element={<Settings onSignOut={onSignOut} />} />
           </Routes>
         </div>

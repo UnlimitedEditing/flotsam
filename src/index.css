@@ -600,3 +600,16 @@ details h3 {
   margin: 12px 0 2px;
   font-size: 0.95rem;
 }
+
+/* Android: share-in, deep-linked job */
+.share-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 40vh;
+  margin: 8px auto;
+  border-radius: 12px;
+}
+.job.highlight {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}

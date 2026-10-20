@@ -3,6 +3,8 @@ import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import JobCard from '../components/JobCard'
 import Lightbox from '../components/Lightbox'
 import { getImageHost } from '../images/hosts/registry'
+import { pickPhoto } from '../native/camera'
+import { isNative } from '../native/platform'
 import { resizeImage } from '../images/resize'
 import { resolveImage } from '../images/resolve'
 import { InvalidImageUrlError, NeedsImageHostError } from '../images/types'
@@ -182,15 +184,24 @@ export default function Chat() {
                   >
                     Previous results
                   </button>
-                  <label className="ghost small filebtn">
-                    Photo
-                    <input
-                      type="file"
-                      accept="image/*"
-                      hidden
-                      onChange={(e) => void onFile(slot, e.target.files?.[0])}
-                    />
-                  </label>
+                  {isNative() ? (
+                    <button
+                      className="ghost small"
+                      onClick={() => void pickPhoto().then((f) => onFile(slot, f ?? undefined))}
+                    >
+                      Photo
+                    </button>
+                  ) : (
+                    <label className="ghost small filebtn">
+                      Photo
+                      <input
+                        type="file"
+                        accept="image/*"
+                        hidden
+                        onChange={(e) => void onFile(slot, e.target.files?.[0])}
+                      />
+                    </label>
+                  )}
                 </div>
               )}
               {pickerSlot === slot.id && (

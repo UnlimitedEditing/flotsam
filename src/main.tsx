@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { setConsentChecker } from './api/client'
+import { initNative } from './native/init'
 import { startLockWatcher } from './security/lock'
 import { engine } from './jobs/instance'
 import { initInstall } from './pwa/install'
@@ -15,6 +16,7 @@ setConsentChecker(isConsentValid) // the age gate: nothing reaches the network u
 engine.setGate(isConsentValid) // queued jobs also wait for the gate
 onConsentChange(() => isConsentValid() && engine.resume())
 startLockWatcher()
+initNative()
 initPwa()
 initInstall()
 startNotifier(

@@ -1,3 +1,5 @@
+import { isNative } from '../../native/platform'
+import { FlotsamNative } from '../../native/plugin'
 import type { ImageHost } from '../types'
 
 // Catbox accepts anonymous uploads, or uploads tied to the uploader's own account via their `userhash`
@@ -39,6 +41,7 @@ export function catboxHost(opts: CatboxOptions = {}): ImageHost {
     label: 'Catbox',
     termsUrl: 'https://catbox.moe/',
     async upload(blob, name, signal) {
+      if (isNative()) return nativeUpload(blob, name, opts.userhash)
       const form = new FormData()
       form.set('reqtype', 'fileupload')
       if (opts.userhash?.trim()) form.set('userhash', opts.userhash.trim())
@@ -62,4 +65,31 @@ export function catboxHost(opts: CatboxOptions = {}): ImageHost {
       return text
     },
   }
+}
+
+/** Android: the Kotlin plugin posts the multipart upload straight to Catbox (no CORS, no relay). */
+async function nativeUpload(blob: Blob, name: string, userhash?: string): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer())
+  let bin = ''
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  const fields: Record<string, string> = { reqtype: 'fileupload' }
+  if (userhash?.trim()) fields.userhash = userhash.trim()
+  let res: { status: number; body: string }
+  try {
+    res = await FlotsamNative.upload({
+      url: CATBOX_DIRECT,
+      fields,
+      fileBase64: btoa(bin),
+      fileName: uploadName(blob, name),
+      mime: blob.type || 'application/octet-stream',
+      fileField: 'fileToUpload',
+    })
+  } catch (e) {
+    throw new Error(`Could not reach the upload service: ${(e as Error).message}`)
+  }
+  const text = res.body.trim()
+  if (res.status < 200 || res.status >= 300 || !RESULT_URL.test(text)) {
+    throw new Error(`Upload failed (${res.status}): ${text.slice(0, 140) || 'no response'}`)
+  }
+  return text
 }

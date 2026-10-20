@@ -1,4 +1,6 @@
 import type { Job, JobStatus } from '../jobs/types'
+import { isNative } from '../native/platform'
+import { FlotsamNative } from '../native/plugin'
 import { isFinished } from '../jobs/types'
 
 // "Render ready" notifications. Rules (from the project plan):
@@ -12,11 +14,26 @@ import { isFinished } from '../jobs/types'
 
 export type NotifyPermission = 'unsupported' | 'default' | 'granted' | 'denied'
 
+// On Android the permission lives in the native layer; a cached copy keeps permissionState() synchronous.
+let nativePermission: NotifyPermission = 'default'
+
+export async function refreshNativePermission(): Promise<void> {
+  if (!isNative()) return
+  const { state } = await FlotsamNative.notificationState()
+  nativePermission = state === 'prompt' ? 'default' : state
+}
+
 export function permissionState(): NotifyPermission {
+  if (isNative()) return nativePermission
   return typeof Notification === 'undefined' ? 'unsupported' : Notification.permission
 }
 
 export async function requestNotifyPermission(): Promise<NotifyPermission> {
+  if (isNative()) {
+    const { state } = await FlotsamNative.requestNotificationPermission()
+    nativePermission = state === 'prompt' ? 'default' : state
+    return nativePermission
+  }
   if (typeof Notification === 'undefined') return 'unsupported'
   return Notification.requestPermission()
 }
@@ -26,6 +43,7 @@ export interface NotificationSpec {
   body: string
   tag: string
   jobId: string
+  ok: boolean
 }
 
 export interface DecisionInput {
@@ -61,10 +79,16 @@ export function decide({
         : 'A render needs attention',
     tag: `job-${next.id}`,
     jobId: next.id,
+    ok,
   }
 }
 
 async function show(spec: NotificationSpec): Promise<void> {
+  if (isNative()) {
+    // The native layer owns the wording (same generic rules, and it knows about discreet mode).
+    await FlotsamNative.notify({ jobId: spec.jobId, ok: spec.ok }).catch(() => {})
+    return
+  }
   const options: NotificationOptions = {
     body: spec.body,
     tag: spec.tag,

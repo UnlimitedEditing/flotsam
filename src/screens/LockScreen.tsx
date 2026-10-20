@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import ClearDataButton from '../components/ClearDataButton'
-import { unlock } from '../security/lock'
+import { biometricAuth, biometricAvailable } from '../native/biometric'
+import { unlock, unlockWithBiometric } from '../security/lock'
+import { usePrefs } from '../state/prefs'
 import { useAppName } from '../state/discreet'
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
@@ -8,6 +10,8 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
 /** Shown instead of the whole app while locked. Nothing from the app is rendered behind it. */
 export default function LockScreen() {
   const name = useAppName()
+  const { biometricUnlock } = usePrefs()
+  const [bio, setBio] = useState(false)
   const [pin, setPin] = useState('')
   const [message, setMessage] = useState('')
   const [retryAt, setRetryAt] = useState(0)
@@ -19,6 +23,24 @@ export default function LockScreen() {
     const t = setInterval(() => setNow(Date.now()), 500)
     return () => clearInterval(t)
   }, [retryAt])
+
+  // Offer fingerprint/face (Android) when the user turned it on; the PIN always remains available.
+  async function tryBiometric() {
+    if (await biometricAuth('Unlock')) unlockWithBiometric()
+  }
+
+  useEffect(() => {
+    if (!biometricUnlock) return
+    let alive = true
+    void biometricAvailable().then((ok) => {
+      if (!alive || !ok) return
+      setBio(true)
+      void tryBiometric() // prompt straight away
+    })
+    return () => {
+      alive = false
+    }
+  }, [biometricUnlock])
 
   const waitS = Math.max(0, Math.ceil((retryAt - now) / 1000))
   const blocked = waitS > 0
@@ -71,6 +93,11 @@ export default function LockScreen() {
           Unlock
         </button>
       </div>
+      {bio && (
+        <button className="ghost" onClick={() => void tryBiometric()}>
+          Use fingerprint or face
+        </button>
+      )}
       <details className="forgot">
         <summary className="muted">Forgot your PIN?</summary>
         <p className="muted">
