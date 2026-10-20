@@ -1,0 +1,7 @@
+name = "flotsam-proxy"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+# Comma-separated browser origins allowed to call the proxy. Set your real PWA origin(s) before deploying.
+[vars]
+ALLOWED_ORIGINS = "http://localhost:5180"
