@@ -2,7 +2,7 @@
 
 Installing a PWA and running its service worker need **HTTPS** (localhost is the only exception). A phone cannot install from `http://192.168.x.x:5180`. Nothing below has been run by the build agent; it needs your Cloudflare account.
 
-> **Do not publish publicly before Phase 3** (18+ gate, terms, privacy controls). Until then keep the origin private or unlisted.
+> Phase 3 (18+ gate, terms, privacy controls) is built, but the terms text is a **draft pending legal review**. Read `docs/privacy-and-terms.md` and complete its checklist before publishing publicly. Until then keep the origin private or unlisted.
 
 ## 1. Deploy the proxy Worker (`worker/`)
 
