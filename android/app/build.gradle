@@ -8,6 +8,32 @@ def flotsamVersionCode = (project.findProperty('flotsam.versionCode') ?: '1').to
 def flotsamVersionName = project.findProperty('flotsam.versionName') ?: '1.0.0'
 def flotsamUpdateUrl = project.findProperty('flotsam.updateManifestUrl') ?: ''
 
+// Release signing. The key never lives in the repository. Values come from the environment (CI) or from a
+// properties file kept OUTSIDE the repo (-Pflotsam.keystoreProperties=<path>) with: storeFile, storePassword,
+// keyAlias, keyPassword. If any is missing, a release build FAILS (see below); it never uses the debug key.
+def keystoreProps = new Properties()
+def keystorePropsPath = project.findProperty('flotsam.keystoreProperties')
+if (keystorePropsPath && file(keystorePropsPath).exists()) {
+    file(keystorePropsPath).withInputStream { keystoreProps.load(it) }
+}
+def signingValue = { String env, String prop -> System.getenv(env) ?: keystoreProps.getProperty(prop) }
+def releaseStoreFile = signingValue('FLOTSAM_KEYSTORE_PATH', 'storeFile')
+def releaseStorePassword = signingValue('FLOTSAM_KEYSTORE_PASSWORD', 'storePassword')
+def releaseKeyAlias = signingValue('FLOTSAM_KEY_ALIAS', 'keyAlias')
+def releaseKeyPassword = signingValue('FLOTSAM_KEY_PASSWORD', 'keyPassword')
+def hasReleaseSigning = releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword &&
+        file(releaseStoreFile).exists()
+
+gradle.taskGraph.whenReady { graph ->
+    def building = graph.allTasks.any { it.project == project && (it.name == 'assembleRelease' || it.name == 'packageRelease' || it.name == 'bundleRelease') }
+    if (building && !hasReleaseSigning) {
+        throw new GradleException(
+            'Release signing is not configured, so no release APK was built (the debug key is never used for releases). ' +
+            'Set FLOTSAM_KEYSTORE_PATH, FLOTSAM_KEYSTORE_PASSWORD, FLOTSAM_KEY_ALIAS and FLOTSAM_KEY_PASSWORD, ' +
+            'or pass -Pflotsam.keystoreProperties=<file outside the repo>. See docs/release.md.')
+    }
+}
+
 android {
     namespace = "app.flotsam.client"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -39,8 +65,19 @@ android {
     testOptions {
         unitTests.returnDefaultValues = true
     }
+    signingConfigs {
+        release {
+            if (hasReleaseSigning) {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
     buildTypes {
         release {
+            if (hasReleaseSigning) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

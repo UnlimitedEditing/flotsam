@@ -32,3 +32,10 @@ android/build
 android/app/build
 android/capacitor-cordova-android-plugins
 .gradle
+
+# Signing material must never be committed
+*.jks
+*.keystore
+*.p12
+keystore.properties
+*.b64
