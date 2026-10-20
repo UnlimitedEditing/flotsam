@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { probeWorkflows } from '../api/probe'
 import { clearApiKey, getApiKey } from '../api/storage'
 import { getImageHost, imageLoads, makeTestPng } from '../images/hosts/registry'
+import InstallCard from '../components/InstallCard'
 import { engine } from '../jobs/instance'
+import { permissionState, requestNotifyPermission, type NotifyPermission } from '../pwa/notify'
 import { setPrefs, usePrefs } from '../state/prefs'
 
 const VERSION = (import.meta.env.VITE_APP_VERSION as string | undefined) ?? 'dev'
@@ -12,6 +14,7 @@ export default function Settings({ onSignOut }: { onSignOut: () => void }) {
   const key = getApiKey()
   const [probe, setProbe] = useState('')
   const [busy, setBusy] = useState(false)
+  const [perm, setPerm] = useState<NotifyPermission>(permissionState())
   const [hostTest, setHostTest] = useState('')
   const [testing, setTesting] = useState(false)
 
@@ -118,8 +121,34 @@ export default function Settings({ onSignOut }: { onSignOut: () => void }) {
         </>
       )}
 
+      <h2>Install</h2>
+      <InstallCard />
+      <p className="muted">
+        Installing needs the app to be served over HTTPS. On iPhone use Safari&apos;s Share menu.
+      </p>
+
       <h2>Notifications</h2>
-      <p className="muted">Render-ready alerts arrive with the installable app (later phases).</p>
+      <label className="toggle">
+        <input
+          type="checkbox"
+          checked={prefs.notifyDone && perm === 'granted'}
+          disabled={perm === 'unsupported' || perm === 'denied'}
+          onChange={async (e) => {
+            if (!e.target.checked) return setPrefs({ notifyDone: false })
+            const p = perm === 'granted' ? perm : await requestNotifyPermission()
+            setPerm(p)
+            setPrefs({ notifyDone: p === 'granted' })
+          }}
+        />
+        <span>Notify me when a render finishes</span>
+      </label>
+      <p className="muted">
+        {perm === 'denied'
+          ? 'Notifications are blocked for this site. Allow them in your browser settings to turn this on.'
+          : perm === 'unsupported'
+            ? 'This browser does not support notifications.'
+            : 'Works while Flotsam is open or just moved to the background. The alert only says a render is ready; it never shows your prompt or any image. Alerts with the app fully closed need the Android app.'}
+      </p>
 
       <h2>Data on this device</h2>
       <button className="ghost" onClick={() => engine.clearAll()}>

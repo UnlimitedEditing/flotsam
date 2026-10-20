@@ -7,6 +7,7 @@ import Login from './screens/Login'
 import Queue from './screens/Queue'
 import Settings from './screens/Settings'
 import Workflows from './screens/Workflows'
+import { OfflineBanner, UpdateBanner } from './components/Banners'
 import { useJobs } from './jobs/instance'
 import { isFinished } from './jobs/types'
 import './state/prefs' // starts loading saved preferences and applies the theme
@@ -39,6 +40,8 @@ export default function App() {
   return (
     <HashRouter>
       <div className="shell">
+        <UpdateBanner />
+        <OfflineBanner />
         <div className="view">
           <Routes>
             <Route path="/" element={<Chat />} />

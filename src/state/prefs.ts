@@ -8,6 +8,8 @@ export interface Prefs {
   imageHost: 'none' | 'catbox' // where local photos are uploaded so Graydient can fetch them
   outputOverrides: Overrides // per-workflow result type (M3DS etc.), set by the user
   modelTrendsIds: Record<string, string> // workflow slug -> 8-character ModelTrends model id
+  notifyDone: boolean // notify when a render finishes while the app is in the background (off by default)
+  iosHintDismissed: boolean // the one-time "Add to Home Screen" hint
   catboxUserhash: string // the user's own Catbox account hash (optional; anonymous uploads work)
   theme: 'dark' | 'light'
   favorites: string[] // workflow slugs
@@ -21,6 +23,8 @@ const DEFAULTS: Prefs = {
   imageHost: 'none',
   catboxUserhash: '',
   outputOverrides: {},
+  notifyDone: false,
+  iosHintDismissed: false,
   modelTrendsIds: {},
   theme: 'dark',
   favorites: [],

@@ -11,6 +11,8 @@ import { buildRequest, emptyForm, missingRequired, unsupportedSlots, type FormVa
 import { classify, validateNumber, type MediaSlot } from '../lib/schema'
 import { isVisible } from '../lib/visibility'
 import { outputSpec } from '../m3ds/registry'
+import InstallCard from '../components/InstallCard'
+import { useOnline } from '../pwa/online'
 import { noteRecent, usePrefs } from '../state/prefs'
 import { useWorkflows } from '../state/useWorkflows'
 
@@ -28,6 +30,7 @@ export default function Chat() {
   const jobs = useJobs()
   const { workflows } = useWorkflows()
   const prefs = usePrefs()
+  const online = useOnline()
   const [params] = useSearchParams()
   const location = useLocation()
 
@@ -136,7 +139,10 @@ export default function Chat() {
     <main className="chat">
       <div className="messages">
         {timeline.length === 0 && (
-          <p className="muted empty">Pick a workflow, type a prompt and send. Results appear here.</p>
+          <div className="empty">
+            <p className="muted">Pick a workflow, type a prompt and send. Results appear here.</p>
+            <InstallCard />
+          </div>
         )}
         {timeline.map((j) => (
           <JobCard key={j.id} job={j} onOpen={(jobId, index) => setLb({ jobId, index })} />
@@ -325,7 +331,11 @@ export default function Chat() {
             onChange={(e) => setForm({ prompt: e.target.value })}
             disabled={!workflow}
           />
-          <button onClick={() => void send()} disabled={!workflow || invalid || missing.length > 0}>
+          <button
+            onClick={() => void send()}
+            disabled={!workflow || invalid || missing.length > 0 || !online}
+            title={online ? undefined : 'Offline'}
+          >
             Send
           </button>
         </div>

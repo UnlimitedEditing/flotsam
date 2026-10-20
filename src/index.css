@@ -483,3 +483,38 @@ audio.media {
   text-decoration: underline;
   font: inherit;
 }
+
+/* PWA */
+.banner {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: max(8px, env(safe-area-inset-top)) 16px 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.9rem;
+}
+.banner.offline {
+  background: var(--panel);
+  color: var(--fg);
+  border-bottom: 1px solid var(--line);
+}
+.banner button {
+  background: rgba(0, 0, 0, 0.25);
+}
+.install-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  margin: 12px 0;
+  text-align: left;
+}
+.install-card p {
+  margin: 0 0 8px;
+  color: var(--fg);
+}
+.empty .muted {
+  margin-bottom: 12px;
+}
