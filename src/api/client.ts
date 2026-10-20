@@ -2,7 +2,9 @@ import { getApiKey } from './storage'
 import type { RenderInfo, Workflow } from './types'
 
 // Override with VITE_API_BASE (e.g. a dev proxy) if the browser CORS check fails.
-export const DEFAULT_BASE = 'https://app.graydient.ai/api/v3/'
+// Dev uses the Vite proxy ('/gd/'); production needs VITE_API_BASE pointing at a CORS-enabled proxy
+// (PWA) or a native HTTP client (Capacitor) because the real API sends no CORS headers.
+export const DEFAULT_BASE = import.meta.env.DEV ? '/gd/' : 'https://app.graydient.ai/api/v3/'
 const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? DEFAULT_BASE
 
 function headers(): Record<string, string> {

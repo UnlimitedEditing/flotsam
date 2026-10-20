@@ -21,6 +21,10 @@ Known behaviour
 - Image input needs a public URL; the CLI's old upload host is dead (open question).
 
 ## Open Phase 0 checks
-- [ ] Does `app.graydient.ai` send CORS headers for a browser origin? (run `npm run dev`, enter key, press "List workflows"; a "Network/CORS error" means no.) If blocked: Capacitor native HTTP on Android, and a small proxy for the PWA.
+- [x] **CORS: blocked (verified 2026-10-20).** `OPTIONS /api/v3/workflows/` with an Origin returns 404 and no `Access-Control-Allow-*` headers; the browser reports "Failed to fetch". Consequences:
+  - Dev: Vite proxy `/gd` -> `app.graydient.ai/api/v3` (see `vite.config.ts`).
+  - Android (Capacitor): use the native HTTP client (`CapacitorHttp`), which ignores CORS.
+  - PWA (iOS + Android): needs a small CORS proxy we host (e.g. a Cloudflare Worker that forwards to the API and adds CORS headers; must pass through the SSE stream on `POST render/`). Never log or store the key in the proxy.
+  - WebSocket `render-events` is not subject to CORS, so it can connect directly.
 - [ ] Web Push / FCM support (assumed none: polling + local notifications).
 - [ ] Upload host for image inputs.
