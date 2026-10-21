@@ -69,6 +69,22 @@ Do these in this order; each takes a minute or two. Use a throwaway test render 
 
 **Updates (do after the checks above pass)**: follow `docs/updates.md`: happy path needs a higher published version (blocked until you decide to publish); bad hash, wrong signer and forced update can be tried with a local manifest (check 7).
 
+## Visual and motion checks (UI redesign, 2026-10-21)
+
+Automated (`scripts/e2e-pwa.mjs`, `scripts/check-contrast.mjs`, `src/styles/guard.test.ts`, `src/lib/*.test.ts`): colour contrast AA in both themes; lightbox opens, covers the tab bar, short drag springs back, long drag dismisses; sheet opens with focus inside, Escape closes and returns focus; reduced motion collapses animation; privacy cover has no animation or transition; no horizontal scroll at 320 px and tablet width.
+
+**Android after the redesign: partly verified.** The Android unit tests (including the new haptics mapping) pass and the debug APK builds. On the Android 16 emulator the redesigned build passed the first checks of `scripts/e2e-emulator.mjs` (gate, login, key held natively, survives restart, no horizontal scroll). One run then reported `back_leaves_app` as failed (cause not found: it passed on the pre-redesign build, so please confirm Back from the Chat tab leaves the app on your phone), and the emulator's WebView connection kept stalling on later steps (offline launch, sign-out, clear-data), so those were **not re-run on the new build**. They passed on the pre-redesign build (see "Emulator results" above) and passed on the new build in headless Chrome.
+
+**Needs your phone (feel cannot be judged by a script):**
+
+- [ ] Back from the Chat tab leaves the app (Android; see note above).
+- [ ] Switching tabs feels smooth: content slides the right way, the indicator springs, nothing stutters.
+- [ ] A running job shows its progress bar; when it finishes the card glows once and you feel a buzz (Android app; some browsers vibrate too).
+- [ ] Tapping a blurred image eases the blur away; opening it grows out of the thumbnail; dragging it down dismisses it and the backdrop fades as you drag.
+- [ ] Settings > Clear all data opens a bottom sheet you can also dismiss by dragging the handle.
+- [ ] With Android's "Remove animations" (or the browser's reduced-motion setting) on, screens change without sliding or bouncing.
+- [ ] On an older or slower phone, if scrolling feels heavy, Settings > Appearance > Reduce visual effects makes it smoother.
+
 ## Known gaps
 
 - The mock API proves Flotsam's behaviour, not Graydient's: a real render on each platform is on the phone list.

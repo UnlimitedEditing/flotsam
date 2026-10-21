@@ -8,22 +8,40 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 const SHOTS = process.env.SHOTS ?? 'shots'
 const TAG = process.env.TAG ?? 'emu'
 const out = {}
-const check = (n, ok, d = '') => (out[n] = { ok: !!ok, ...(d ? { detail: d } : {}) })
+const check = (n, ok, d = '') => {
+  out[n] = { ok: !!ok, ...(d ? { detail: d } : {}) }
+  console.error(`${ok ? 'ok  ' : 'FAIL'} ${n} ${new Date().toISOString().slice(11, 19)}`)
+}
 
 async function connect() {
-  const sock = adb('shell', 'cat', '/proc/net/unix')
-    .match(/webview_devtools_remote_\d+/g)
-    ?.pop()
-  adb('forward', 'tcp:9222', `localabstract:${sock}`)
-  let tgt
-  for (let i = 0; i < 20 && !tgt; i++) {
-    try {
-      tgt = (await (await fetch('http://localhost:9222/json')).json()).find((t) => t.type === 'page')
-    } catch {}
-    if (!tgt) await wait(1000)
+  // Sockets of processes that were force-stopped can linger, so try the newest first and fall back.
+  let ws
+  for (let attempt = 0; attempt < 25 && !ws; attempt++) {
+    const socks = (
+      adb('shell', 'cat', '/proc/net/unix').match(/webview_devtools_remote_\d+/g) ?? []
+    ).reverse()
+    for (const sock of socks) {
+      adb('forward', 'tcp:9222', `localabstract:${sock}`)
+      try {
+        const tgt = (
+          await (await fetch('http://localhost:9222/json', { signal: AbortSignal.timeout(2500) })).json()
+        ).find((t) => t.type === 'page')
+        if (!tgt) continue
+        const candidate = new WebSocket(tgt.webSocketDebuggerUrl)
+        await new Promise((r, j) => {
+          candidate.onopen = r
+          candidate.onerror = j
+          setTimeout(() => j(new Error('timeout')), 3000)
+        })
+        ws = candidate
+        break
+      } catch {
+        /* the page is not ready yet, or this socket belongs to a dead process: try the next one */
+      }
+    }
+    if (!ws) await wait(1500)
   }
-  const ws = new WebSocket(tgt.webSocketDebuggerUrl)
-  await new Promise((r, j) => ((ws.onopen = r), (ws.onerror = j)))
+  if (!ws) throw new Error('no debuggable WebView found (is the DEBUG build installed and the app running?)')
   let id = 0
   const pending = new Map()
   ws.onmessage = (m) => {
