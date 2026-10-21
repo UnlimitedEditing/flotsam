@@ -67,6 +67,7 @@ Without signing configured, a release build **fails with a clear message**; it n
 - [ ] Repository secrets set (four listed above).
 - [ ] Terms/Content Policy reviewed (legal), age-assurance decision made, adult-content stance per channel confirmed.
 - [ ] A LICENSE chosen (none is included by default, which means all rights reserved).
+- [ ] Test checklist (`docs/test-checklist.md`) phone steps done.
 - [ ] Draft release downloaded, signature verified, installed on a phone, in-app update tested against a higher published version.
 - [ ] Then, and only then, publish.
 

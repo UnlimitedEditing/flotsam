@@ -41,3 +41,4 @@ keystore.properties
 *.b64
 
 site-dist
+dist-e2e

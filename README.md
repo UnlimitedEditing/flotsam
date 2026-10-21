@@ -12,7 +12,7 @@ An independent mobile client for your own Graydient account: run workflows from 
 - `android/`: the Android shell (Capacitor + a Kotlin plugin: native networking, encrypted key storage, biometric unlock, share-in, background render checks, self-update).
 - `worker/`: a small Cloudflare Worker that proxies the web version (Graydient and Catbox send no CORS headers).
 - `scripts/`, `.github/workflows/`: release tooling and CI.
-- `docs/`: `android.md`, `updates.md`, `release.md`, `deploy-pwa.md`, `privacy-and-terms.md`, `api-notes.md`, `download-page.md`, `testing-on-a-phone.md`.
+- `docs/`: `android.md`, `updates.md`, `release.md`, `deploy-pwa.md`, `privacy-and-terms.md`, `api-notes.md`, `download-page.md`, `testing-on-a-phone.md`, `test-checklist.md`.
 
 ## Develop
 
