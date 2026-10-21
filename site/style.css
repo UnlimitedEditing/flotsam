@@ -1,0 +1,150 @@
+:root {
+  --bg: #0e1113;
+  --panel: #171b1f;
+  --fg: #eee;
+  --muted: #9aa;
+  --line: #2a3036;
+  --accent: #22cc99;
+  --on-accent: #06251c;
+  color-scheme: dark light;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #fff;
+    --panel: #f3f5f6;
+    --fg: #111;
+    --muted: #556;
+    --line: #d9dee2;
+    --accent: #0a7a5a;
+    --on-accent: #fff;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font:
+    16px/1.5 system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  overflow-x: hidden;
+}
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 8px
+    max(16px, env(safe-area-inset-left));
+}
+h1 {
+  margin: 0 0 4px;
+  font-size: 2rem;
+}
+h2 {
+  display: inline;
+  margin: 0;
+  font-size: 1.15rem;
+}
+.tag,
+.meta {
+  color: var(--muted);
+}
+.meta {
+  font-size: 0.9rem;
+}
+a {
+  color: var(--accent);
+}
+.notice {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 4px 16px;
+  margin: 16px 0;
+  font-size: 0.95rem;
+}
+section {
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+summary {
+  cursor: pointer;
+  padding: 6px 0;
+}
+.btn {
+  display: block;
+  text-align: center;
+  background: var(--accent);
+  color: var(--on-accent);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 12px 0;
+  font-weight: 600;
+  text-decoration: none;
+}
+.btn[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 12px 0 4px;
+}
+.check input {
+  margin-top: 5px;
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.steps li {
+  margin: 8px 0;
+}
+code {
+  display: block;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font:
+    0.8rem/1.4 ui-monospace,
+    Consolas,
+    monospace;
+  overflow-wrap: anywhere;
+}
+.meta code {
+  display: inline;
+  padding: 1px 5px;
+}
+.empty {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.qr {
+  width: min(260px, 70vw);
+  margin: 12px 0;
+  background: #fff;
+  padding: 10px;
+  border-radius: 10px;
+}
+.qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+details ul {
+  padding-left: 20px;
+}
+footer {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 8px 16px max(24px, env(safe-area-inset-bottom));
+  color: var(--muted);
+  font-size: 0.9rem;
+}
