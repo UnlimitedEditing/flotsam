@@ -69,3 +69,8 @@ Without signing configured, a release build **fails with a clear message**; it n
 - [ ] A LICENSE chosen (none is included by default, which means all rights reserved).
 - [ ] Draft release downloaded, signature verified, installed on a phone, in-app update tested against a higher published version.
 - [ ] Then, and only then, publish.
+
+## Download page
+
+Publishing a release also deploys the download page (`.github/workflows/pages.yml`). See `docs/download-page.md`.
+Test the page and the app on a phone with `docs/testing-on-a-phone.md`.

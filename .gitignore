@@ -39,3 +39,5 @@ android/capacitor-cordova-android-plugins
 *.p12
 keystore.properties
 *.b64
+
+site-dist

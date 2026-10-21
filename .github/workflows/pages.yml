@@ -1,0 +1,65 @@
+name: Download page
+
+# Builds the static download page and deploys it to GitHub Pages.
+#   - release published: the page offers that release (read from its version.json).
+#   - manual run: deploys the "no release yet" page, so the page can be reviewed before anything is published.
+# Draft releases never trigger this, so nothing downloadable appears before you publish.
+# Pages must be enabled first (Settings > Pages > Source: GitHub Actions); see docs/download-page.md.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Fetch version.json of the published release
+        if: github.event_name == 'release'
+        run: gh release download "$TAG" --repo "$REPO" --pattern version.json --dir .
+
+      - name: Build the page
+        run: |
+          if [ -f version.json ]; then
+            node scripts/build-site.mjs --version-json version.json --tag "$TAG"
+          else
+            node scripts/build-site.mjs
+          fi
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site-dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

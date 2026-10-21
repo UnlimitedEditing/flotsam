@@ -116,6 +116,7 @@ export function renderPage({ repo, siteUrl, pwaUrl = '', fingerprint, release = 
 <meta name="color-scheme" content="dark light" />
 <meta name="description" content="An independent mobile app for your own Graydient account. Not affiliated with Graydient." />
 <title>Flotsam</title>
+<link rel="icon" href="data:," />
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
