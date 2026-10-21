@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Workflow } from '../api/types'
 import HeatPanel from '../components/HeatPanel'
+import Skeleton from '../components/ui/Skeleton'
 import { classify, outputKinds, type OutputKind } from '../lib/schema'
 import { visibleWorkflows } from '../lib/visibility'
 import { EXPECT_LABELS, outputSpec, type Expect, type Overrides } from '../m3ds/registry'
@@ -131,6 +132,7 @@ export default function Workflows() {
         </span>
       </div>
       {error && <p className="error">{error}</p>}
+      {loading && workflows.length === 0 && <Skeleton rows={7} label="Loading workflows" />}
       {!q && favs.length > 0 && (
         <>
           <h2>Favorites</h2>

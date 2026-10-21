@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ResolvedMedia } from '../api/types'
 import { isAudio, isVideo } from '../lib/save'
 import { usePrefs } from '../state/prefs'
+import Icon from './ui/Icon'
 
 // Per-session reveal memory only (never persisted): a reload blurs everything again.
 const revealed = new Set<string>()
@@ -34,6 +35,7 @@ export default function MediaThumb({ media, onOpen, controls, forceBlur }: Props
     <button
       type="button"
       className={`thumb${hidden ? ' blurred' : ''}`}
+      data-media={media.url}
       onClick={click}
       aria-label={hidden ? 'Reveal' : 'Open'}
     >
@@ -50,7 +52,11 @@ export default function MediaThumb({ media, onOpen, controls, forceBlur }: Props
       ) : (
         <img className="media" src={media.url} loading="lazy" alt="" referrerPolicy="no-referrer" />
       )}
-      {hidden && <span className="reveal">Tap to reveal</span>}
+      {hidden && (
+        <span className="reveal">
+          <Icon name="eye" size={18} /> Tap to reveal
+        </span>
+      )}
     </button>
   )
 }

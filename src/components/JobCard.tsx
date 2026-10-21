@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useState, type CSSProperties } from 'react'
 import { engine } from '../jobs/instance'
 import { isFinished, type Job } from '../jobs/types'
 import type { OutputSpec } from '../m3ds/registry'
@@ -30,16 +30,33 @@ export default function JobCard({
 }) {
   const finished = isFinished(job.status)
   const [panel, setPanel] = useState<OutputSpec | null>(null)
+  // A job that finishes while its card is on screen gets a short glow; old history does not replay it.
+  const [mountedAt] = useState(Date.now)
+  const fresh = job.status === 'done' && (job.finishedAt ?? 0) >= mountedAt - 2000
+  const estimate = job.estimatedRenderTime && job.estimatedRenderTime > 0 ? job.estimatedRenderTime : 0
   const declared = job.status === 'done' ? job.output : undefined
   // Workflows not marked as M3DS can still be tried by hand: the decoder just checks for the header.
   const canTry = job.status === 'done' && !declared && hasPixelMedia(job)
 
   return (
-    <article id={`job-${job.id}`} className={`job ${job.status}${highlight ? ' highlight' : ''}`}>
+    <article
+      id={`job-${job.id}`}
+      className={`job ${job.status}${highlight ? ' highlight' : ''}${fresh ? ' fresh' : ''}`}
+    >
       <header>
         <strong>{job.workflowName}</strong>
-        <span className="status">{LABEL[job.status]}</span>
+        <span className={`status pill ${job.status}`}>{LABEL[job.status]}</span>
       </header>
+      {!finished && (
+        <div
+          className={`progress${estimate ? ' timed' : ''}`}
+          style={estimate ? ({ '--est': `${estimate}s` } as CSSProperties) : undefined}
+          role="progressbar"
+          aria-label={LABEL[job.status]}
+        >
+          <span />
+        </div>
+      )}
       <p className="prompt">{job.prompt || <span className="muted">(no prompt)</span>}</p>
       {job.status === 'running' && job.estimatedRenderTime ? (
         <p className="muted">

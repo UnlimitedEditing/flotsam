@@ -193,6 +193,38 @@ try {
   await page.click('button.thumb')
   await wait(300)
   check('reveal_per_image', await page.evaluate(() => !document.querySelector('button.thumb.blurred')))
+
+  // Lightbox: opens from the revealed thumbnail, drag-to-dismiss closes it, a short drag springs back.
+  await page.click('button.thumb')
+  await page.waitForSelector('.lightbox .lb-media img', { timeout: 5000 }).catch(() => {})
+  await wait(450)
+  check('lightbox_opens', (await page.$('.lightbox')) !== null)
+  check(
+    'lightbox_covers_the_tab_bar',
+    await page.evaluate(() => {
+      const el = document.elementFromPoint(innerWidth / 2, innerHeight - 8)
+      return !!el && !!el.closest('.lightbox')
+    }),
+  )
+  await page.screenshot({ path: `${SHOTS}/e2e-3b-lightbox.png` })
+  const box = await (await page.$('.lb-media img'))?.boundingBox()
+  const cx = (box?.x ?? 100) + (box?.width ?? 10) / 2
+  const cy = (box?.y ?? 100) + (box?.height ?? 10) / 2
+  const dragBy = async (dy) => {
+    await page.mouse.move(cx, cy)
+    await page.mouse.down()
+    for (let k = 1; k <= 8; k++) await page.mouse.move(cx, cy + (dy * k) / 8)
+    await page.mouse.up()
+    await wait(500)
+  }
+  await dragBy(40)
+  check('lightbox_short_drag_springs_back', (await page.$('.lightbox')) !== null)
+  await dragBy(240)
+  check(
+    'lightbox_drag_dismisses',
+    (await page.$('.lightbox')) === null,
+    await page.evaluate(() => document.querySelector('.lightbox')?.getAttribute('style') ?? 'closed'),
+  )
   await page.reload({ waitUntil: 'networkidle0' })
   await page.goto(`http://localhost:${APP}/#/queue`, { waitUntil: 'networkidle0' })
   await wait(500)
