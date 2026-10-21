@@ -2,15 +2,16 @@
 
 Written 2026-10-21 from Jacob's feedback after the first look at the built app. Nothing here is built yet. Each brief is written so a fresh session can pick it up cold: goal, what exists, what is unknown, a proposed approach, risks, and what "done" means.
 
-| #   | Brief                                                                    | Size          | Depends on                |
-| --- | ------------------------------------------------------------------------ | ------------- | ------------------------- |
-| 02  | [M3DS viewer only where a result is barcoded](02-m3ds-gating.md)         | small (a day) | nothing                   |
-| 01  | [UI redesign and motion](01-ui-and-motion.md)                            | medium        | nothing (do before 03-05) |
-| 03  | [Rigging in the app](03-rigging-in-app.md)                               | large         | 01, 02                    |
-| 04  | [Mobile game builder](04-game-builder.md)                                | very large    | 01, 03 helps              |
-| 05  | [Virtual companion (persona + animated avatar)](05-virtual-companion.md) | very large    | 01, 03                    |
+| #   | Brief                                                                                 | Size          | Depends on                                     |
+| --- | ------------------------------------------------------------------------------------- | ------------- | ---------------------------------------------- |
+| 02  | [M3DS viewer only where a result is barcoded](02-m3ds-gating.md)                      | small (a day) | nothing                                        |
+| 01  | [UI redesign and motion](01-ui-and-motion.md)                                         | medium        | nothing (do before 03-05)                      |
+| 03  | [Rigging in the app](03-rigging-in-app.md)                                            | large         | 01, 02                                         |
+| 04  | [Mobile game builder](04-game-builder.md)                                             | very large    | 01, 03 helps                                   |
+| 05  | [Virtual companion (persona + animated avatar)](05-virtual-companion.md)              | very large    | 01, 03                                         |
+| 06  | [Async world: an almost-live MMO where an AI plays your character](06-async-world.md) | very large    | 03, 04, 05 help; needs a legal/moderation plan |
 
-Suggested order: 02, 01, 03, then 05 or 04 (04 starts with a spike; 05 starts with a discovery pass on Graydient's chat API).
+Suggested order: 02, 01, 03, then 05, 04 or 06 (04 starts with a spike; 05 starts with a discovery pass on Graydient's chat API; 06 starts with a design doc and a cost simulator, and its social layer waits on a legal/moderation plan).
 
 ## Things that apply to every brief
 
