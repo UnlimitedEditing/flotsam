@@ -1,0 +1,155 @@
+/*
+  Design tokens: the single source for colour, spacing, radius, elevation, type and motion.
+  Dark and glassy by default (a deep-sea palette); the light theme maps the same roles to foam and sand.
+  Legacy names (--bg, --panel, --fg, --muted, --line, --accent, --err) stay as aliases so older rules keep working.
+  Motion rules live in docs/design.md; every duration collapses to ~0 under prefers-reduced-motion.
+*/
+:root {
+  /* palette: roles, not hues */
+  --abyss: #06121a;
+  --deep: #0a1d28;
+  --surface: rgba(150, 215, 225, 0.07);
+  --surface-2: rgba(150, 215, 225, 0.12);
+  --surface-solid: #0e2430;
+  --line: rgba(150, 215, 225, 0.16);
+  --fg: #e8f6f3;
+  --muted: #8fb0b8;
+  --accent: #3fe0c5;
+  --accent-2: #38bdf8;
+  --on-accent: #032620;
+  --warm: #ff8f7a;
+  --err: #ff7a7a;
+  --scrim: rgba(3, 12, 18, 0.72);
+  --glow: rgba(63, 224, 197, 0.35);
+  --bg-image:
+    radial-gradient(120% 55% at 50% -12%, rgba(31, 120, 140, 0.55) 0%, transparent 62%),
+    radial-gradient(80% 40% at 100% 100%, rgba(20, 70, 110, 0.35) 0%, transparent 70%);
+
+  /* legacy aliases */
+  --bg: var(--abyss);
+  --panel: var(--surface);
+
+  /* spacing, radius, elevation */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --r-1: 8px;
+  --r-2: 12px;
+  --r-3: 18px;
+  --r-pill: 999px;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-2: 0 8px 28px rgba(0, 0, 0, 0.4);
+  --blur: 16px;
+
+  /* type */
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --fs-0: 0.8rem;
+  --fs-1: 0.9rem;
+  --fs-2: 1rem;
+  --fs-3: 1.25rem;
+  --fs-4: 1.75rem;
+
+  /* motion */
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 320ms;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  color-scheme: dark;
+}
+
+/* a real spring (overshoot and settle) where linear() easing exists; otherwise the cubic approximation above */
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    --ease-spring: linear(
+      0,
+      0.009,
+      0.035 2.1%,
+      0.141,
+      0.281 6.7%,
+      0.723 12.9%,
+      0.938 16.7%,
+      1.017,
+      1.077,
+      1.121,
+      1.149 24.3%,
+      1.159,
+      1.163,
+      1.161,
+      1.154 29.9%,
+      1.129 32.8%,
+      1.051 39.6%,
+      1.017 43.1%,
+      0.991,
+      0.977 51%,
+      0.974 53.8%,
+      0.975 57.1%,
+      0.997 69.8%,
+      1.003 76.9%,
+      1
+    );
+  }
+}
+
+:root[data-theme='light'] {
+  --abyss: #f1f8f8;
+  --deep: #e4f0f1;
+  --surface: rgba(255, 255, 255, 0.74);
+  --surface-2: rgba(255, 255, 255, 0.95);
+  --surface-solid: #ffffff;
+  --line: rgba(10, 60, 70, 0.16);
+  --fg: #0b2a33;
+  --muted: #4b6a73;
+  --accent: #0a7f70;
+  --accent-2: #1274a8;
+  --on-accent: #ffffff;
+  --warm: #c24a35;
+  --err: #b3261e;
+  --scrim: rgba(230, 242, 243, 0.8);
+  --glow: rgba(10, 127, 112, 0.28);
+  --bg-image:
+    radial-gradient(120% 55% at 50% -12%, rgba(120, 200, 205, 0.5) 0%, transparent 62%),
+    radial-gradient(80% 40% at 100% 100%, rgba(150, 190, 225, 0.35) 0%, transparent 70%);
+  --shadow-1: 0 1px 2px rgba(10, 60, 70, 0.12);
+  --shadow-2: 0 8px 28px rgba(10, 60, 70, 0.18);
+  color-scheme: light;
+}
+
+/* glass surface: translucent with blur where supported, solid where not (or when effects are reduced) */
+.glass {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.25);
+  backdrop-filter: blur(var(--blur)) saturate(1.25);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass {
+    background: var(--surface-solid);
+  }
+}
+:root[data-effects='reduced'] .glass {
+  background: var(--surface-solid);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* reduced motion: keep state changes, drop travel and bounce */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1: 1ms;
+    --dur-2: 1ms;
+    --dur-3: 1ms;
+    --ease-spring: linear;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
