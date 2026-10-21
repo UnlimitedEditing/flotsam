@@ -1,6 +1,6 @@
 # Rigging in the app
 
-How rig results (puppets, direction sheets, performance tracks, sets, shots) are opened in Flotsam, and how the project library and rig builder fit in. Status: **viewers (M1), library (M2) and the in-app builder (M3a) are done**; the Graydient packing workflow it needs (M3b) is written and tested locally, and waits to be pushed and restored. See `docs/roadmap/03-rigging-in-app.md` for the brief.
+How rig results (puppets, direction sheets, performance tracks, sets, shots) are opened in Flotsam, and how the project library and rig builder fit in. Status: **viewers (M1), library (M2), the in-app builder (M3a) and the Graydient packing workflow (M3b) are done and confirmed live.** Known quality issue: eyebrows can be baked into the eye layers (see below). See `docs/roadmap/03-rigging-in-app.md` for the brief.
 
 ## Result viewers
 
@@ -48,7 +48,7 @@ You can leave the screen: the build is driven by a controller (`src/rig/builder.
 
 Part sheets are ordinary pictures (`rig-puppet-parts` is declared as such so it gets no viewer button); `rig-puppet-pack` is declared as barcoded rig content.
 
-### The packing workflow (M3b: written and tested, waiting to be pushed and restored)
+### The packing workflow (M3b: live on Graydient as rig-puppet-pack, confirmed 2026-10-21)
 
 `rig-puppet-pack` is Rig Studio's own packer (`puppet_rig.py`, copied byte-identical and run unchanged) wrapped as the node `RigStudioPuppetPack` in `UnlimitedEditing/ComfyUI-RigStudio` (`nodes_puppet.py`, `rigstudio/puppet_job.py`), plus the workflow backup `D:	ripostl\gen_rigstudio_puppet_pack.py` -> `GraydientWorkflow-rigstudio-puppet-pack-v1.json`.
 
@@ -56,7 +56,11 @@ Part sheets are ordinary pictures (`rig-puppet-parts` is declared as such so it 
 - **Output:** the puppet as a data-image PNG written by the node itself, plus a preview card through a stock SaveImage.
 - **No model files and no pip entries:** numpy, scipy and Pillow ship in the ComfyUI base image (catalog KI-007 section 1; extra pip entries can crash ComfyUI with a numpy/scipy mismatch).
 - **Verified locally:** with your `bluebob2` sheets it reproduces the PC-built puppet exactly (identical bundle, 49 layers) in about 12 s on CPU under numpy 2.4 and scipy 1.17; 8 tests (validation messages for missing, non-PNG, wrong-size, mismatched and no-change sheets); the node entry point was run against a stand-in for ComfyUI's file helpers. The workflow JSON lints clean.
-- **Not yet verified live:** a real Graydient run. To deploy: push the node commit to `UnlimitedEditing/ComfyUI-RigStudio`, restore the JSON on Graydient as `rig-puppet-pack` (needs your login), then run the builder against your account; after a confirmed run, `harvest-session` records the node signature in the catalog.
+- **Confirmed live (2026-10-21):** pushed (`b7f7ea5`), restored as `WFXxkD17` (private), and run on Graydient after four real `rig-puppet-parts` renders of your `bluebob2` head: render `D8gveG` succeeded, node time 5 s (156 s elapsed on its first run), returning the puppet (2.5 MB) and a preview card. All 49 layers were pixel-identical to a local pack of the same four sheets, and the app's end-to-end suite (55 checks) passes with this Graydient-made puppet as the result. The mouth sheet from Graydient was byte-identical to your September original; idle, eyes and brows differ slightly (the parts workflow is not byte-deterministic).
+
+## Known issue: eyebrows baked into the eye layers
+
+Found 2026-10-21 on the `bluebob2` puppet: the eye layers `lid25`, `lid50`, `lid75`, `narrow` and `shut` each contain a brow stroke at the top, so with the brow track animating, a second brow shows. Cause: the packer cuts the eyes from a band whose top edge (y 274) lies above the bottom of the brow region (y 290), and every eye-edit frame re-draws the brows inside that band. Fix plan: erase brow ink (dark strokes above the eye whites, not touching the lids or lashes) from every eye frame and let the brow layers cover that area; add a test that fails today on these sheets.
 
 ## Next
 

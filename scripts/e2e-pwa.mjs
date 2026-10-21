@@ -82,14 +82,12 @@ const mock = createServer((req, res) => {
   if (url.pathname === '/sheet.png' && sheetFile)
     return res.writeHead(200, { ...cors, 'content-type': 'image/png' }).end(sheetFile)
   if (url.pathname.endsWith('/workflows/'))
-    return res
-      .writeHead(200, { ...cors, 'content-type': 'application/json' })
-      .end(
-        JSON.stringify({
-          data: [workflow, rigWorkflow, puppetWorkflow, partsWorkflow, packWorkflow],
-          links: {},
-        }),
-      )
+    return res.writeHead(200, { ...cors, 'content-type': 'application/json' }).end(
+      JSON.stringify({
+        data: [workflow, rigWorkflow, puppetWorkflow, partsWorkflow, packWorkflow],
+        links: {},
+      }),
+    )
   const imagesFor = (kind) => {
     const file =
       kind === 'puppet' && puppetFile ? 'puppet.png' : kind === 'sheet' && sheetFile ? 'sheet.png' : 'img.png'
@@ -162,6 +160,7 @@ const browser = await puppeteer.launch({
   args: ['--no-first-run'],
 })
 const out = {}
+let puppetName = 'bluebob2' // read from the puppet viewer, so any sample puppet works
 const check = (name, ok, detail = '') => (out[name] = { ok: !!ok, ...(detail ? { detail } : {}) })
 const text = (page) => page.evaluate(() => document.body.innerText)
 const clickText = (page, sel, t) =>
@@ -372,6 +371,10 @@ try {
         group,
         label,
       )
+    puppetName =
+      (await page.evaluate(() => document.querySelector('.puppet-viewer > p.muted')?.textContent ?? ''))
+        .split(' · ')[0]
+        .trim() || puppetName
     const f0 = await frame()
     check('puppet_opens_and_draws', !!f0 && f0.opaque > 200, JSON.stringify(f0))
     await page.screenshot({ path: `${SHOTS}/e2e-3d-puppet.png` })
@@ -458,10 +461,12 @@ try {
   check('library_lists_saved_items', (await cards()) === expectedItems, `cards=${await cards()}`)
   await page.screenshot({ path: `${SHOTS}/e2e-3e-library.png` })
   if (puppetFile) {
-    const hasThumb = await page.evaluate(() =>
-      [...document.querySelectorAll('.lib-card')].some(
-        (c) => c.textContent.includes('bluebob2') && !!c.querySelector('img'),
-      ),
+    const hasThumb = await page.evaluate(
+      (n) =>
+        [...document.querySelectorAll('.lib-card')].some(
+          (c) => c.textContent.includes(n) && !!c.querySelector('img'),
+        ),
+      puppetName,
     )
     check('library_puppet_has_thumbnail_and_name', hasThumb)
     const tapCard = (name) =>
@@ -469,17 +474,17 @@ try {
         const c = [...document.querySelectorAll('.lib-card')].find((x) => x.textContent.includes(n))
         c?.querySelector('.lib-open')?.click()
       }, name)
-    await tapCard('bluebob2') // reveal
+    await tapCard(puppetName) // reveal
     await wait(300)
-    await tapCard('bluebob2') // open
+    await tapCard(puppetName) // open
     await page.waitForSelector('.puppet-stage canvas', { timeout: 20000 }).catch(() => {})
     await wait(800)
     check('library_puppet_opens_from_storage', (await page.$('.puppet-stage canvas')) !== null)
     await closePanel()
-    await page.evaluate(() => {
-      const c = [...document.querySelectorAll('.lib-card')].find((x) => x.textContent.includes('bluebob2'))
+    await page.evaluate((n) => {
+      const c = [...document.querySelectorAll('.lib-card')].find((x) => x.textContent.includes(n))
       ;[...(c?.querySelectorAll('button') ?? [])].find((b) => b.textContent.trim() === 'Rename')?.click()
-    })
+    }, puppetName)
     await wait(500)
     await page.evaluate(() => {
       const input = document.querySelector('.sheet input')
