@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { TERMS, TERMS_DRAFT_NOTICE } from '../legal/terms'
 import { acceptConsent } from '../state/consent'
+import Logo from '../components/ui/Logo'
 
 /** Everything the app shows before the gate is this screen and nothing else. */
 export default function Gate() {
@@ -20,6 +21,7 @@ export default function Gate() {
 
   return (
     <main className="page gate">
+      <Logo size={56} animated />
       <h1>Before you continue</h1>
       <p className="muted">
         Flotsam can show adult and explicit content. Please read and confirm. {TERMS_DRAFT_NOTICE}

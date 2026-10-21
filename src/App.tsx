@@ -1,4 +1,7 @@
-import { HashRouter, NavLink, Route, Routes } from 'react-router-dom'
+import type { CSSProperties } from 'react'
+import { HashRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import Icon, { type IconName } from './components/ui/Icon'
+import { useDirection } from './lib/motion'
 import { useSignedIn } from './api/storage'
 import Chat from './screens/Chat'
 import Gallery from './screens/Gallery'
@@ -24,23 +27,62 @@ import { useBootstrapReady } from './state/bootstrap'
 import { useConsentValid } from './state/consent'
 import { useApplyDiscreet } from './state/discreet'
 
+const TABS: Array<{ to: string; label: string; icon: IconName }> = [
+  { to: '/', label: 'Chat', icon: 'chat' },
+  { to: '/workflows', label: 'Workflows', icon: 'workflows' },
+  { to: '/queue', label: 'Queue', icon: 'queue' },
+  { to: '/gallery', label: 'Gallery', icon: 'gallery' },
+  { to: '/settings', label: 'Settings', icon: 'settings' },
+]
+const TAB_ORDER = TABS.map((t) => t.to)
+
 function TabBar() {
   const active = useJobs().filter((j) => !isFinished(j.status)).length
-  const tabs: Array<[string, string]> = [
-    ['/', 'Chat'],
-    ['/workflows', 'Workflows'],
-    ['/queue', active ? `Queue (${active})` : 'Queue'],
-    ['/gallery', 'Gallery'],
-    ['/settings', 'Settings'],
-  ]
+  const { pathname } = useLocation()
+  const current = TAB_ORDER.indexOf(pathname)
   return (
-    <nav className="tabs">
-      {tabs.map(([to, label]) => (
-        <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive ? 'on' : '')}>
-          {label}
+    <nav className="tabs glass" style={{ '--i': Math.max(current, 0), '--n': TABS.length } as CSSProperties}>
+      {current >= 0 && <span className="tab-indicator" aria-hidden="true" />}
+      {TABS.map(({ to, label, icon }) => (
+        <NavLink
+          key={to}
+          to={to}
+          end={to === '/'}
+          className={({ isActive }) => (isActive ? 'on' : '')}
+          aria-label={to === '/queue' && active ? `${label}, ${active} running` : label}
+        >
+          <span className="tab-icon">
+            <Icon name={icon} size={22} />
+            {to === '/queue' && active > 0 && (
+              <span key={active} className="badge">
+                {active}
+              </span>
+            )}
+          </span>
+          <span className="tab-label">{label}</span>
         </NavLink>
       ))}
     </nav>
+  )
+}
+
+/** Each route change enters with a short fade and slide; tab moves slide the way the tab bar moved. */
+function AnimatedView({ onSignOut }: { onSignOut: () => void }) {
+  const { pathname } = useLocation()
+  const direction = useDirection(TAB_ORDER, pathname)
+  return (
+    <div className="view">
+      <div key={pathname} className="view-page" data-dir={direction}>
+        <Routes>
+          <Route path="/" element={<Chat />} />
+          <Route path="/workflows" element={<Workflows />} />
+          <Route path="/queue" element={<Queue />} />
+          <Route path="/gallery" element={<Gallery />} />
+          <Route path="/share" element={<Share />} />
+          <Route path="/settings" element={<Settings onSignOut={onSignOut} />} />
+        </Routes>
+      </div>
+    </div>
   )
 }
 
@@ -52,16 +94,7 @@ function Shell({ onSignOut }: { onSignOut: () => void }) {
         <NativeUpdateBanner />
         <UpdateBanner />
         <OfflineBanner />
-        <div className="view">
-          <Routes>
-            <Route path="/" element={<Chat />} />
-            <Route path="/workflows" element={<Workflows />} />
-            <Route path="/queue" element={<Queue />} />
-            <Route path="/gallery" element={<Gallery />} />
-            <Route path="/share" element={<Share />} />
-            <Route path="/settings" element={<Settings onSignOut={onSignOut} />} />
-          </Routes>
-        </div>
+        <AnimatedView onSignOut={onSignOut} />
         <TabBar />
       </div>
     </HashRouter>

@@ -212,29 +212,150 @@ button.icon {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
+}
+.view-page {
+  min-height: 100%;
+  height: 100%;
+  animation: page-in var(--dur-3) var(--ease-out) both;
+}
+.view-page[data-dir='forward'] {
+  animation-name: page-in-forward;
+}
+.view-page[data-dir='back'] {
+  animation-name: page-in-back;
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@keyframes page-in-forward {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+}
+@keyframes page-in-back {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
 }
 .page {
   max-width: 640px;
   margin: 0 auto;
   padding: max(16px, env(safe-area-inset-top)) 16px 24px;
 }
+
+/* tab bar: glass, with an indicator that slides between tabs */
 .tabs {
-  display: flex;
-  border-top: 1px solid var(--line);
-  background: var(--panel);
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--n, 5), 1fr);
+  border-width: 1px 0 0;
+  border-radius: 0;
   padding-bottom: env(safe-area-inset-bottom);
 }
+.tab-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(100% / var(--n, 5));
+  height: 3px;
+  transform: translateX(calc(var(--i, 0) * 100%));
+  transition: transform var(--dur-3) var(--ease-spring);
+  pointer-events: none;
+}
+.tab-indicator::after {
+  content: '';
+  display: block;
+  width: 28px;
+  height: 100%;
+  margin: 0 auto;
+  border-radius: 0 0 3px 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  box-shadow: 0 2px 10px var(--glow);
+}
 .tabs a {
-  flex: 1;
-  text-align: center;
-  padding: 12px 2px;
-  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 9px 2px 8px;
+  font-size: 0.72rem;
   color: var(--muted);
   text-decoration: none;
+}
+.tabs a:active .tab-icon {
+  transform: scale(0.88);
 }
 .tabs a.on {
   color: var(--accent);
   font-weight: 600;
+}
+.tab-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  transition: transform var(--dur-3) var(--ease-spring);
+}
+.tabs a.on .tab-icon {
+  transform: translateY(-1px) scale(1.08);
+}
+.badge {
+  position: absolute;
+  top: -5px;
+  right: -9px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--r-pill);
+  background: var(--warm);
+  color: var(--bg);
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  animation: pop var(--dur-3) var(--ease-spring) both;
+}
+@keyframes pop {
+  from {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+}
+
+/* first-run screens */
+.hero {
+  text-align: center;
+  padding-top: max(10vh, env(safe-area-inset-top));
+}
+.hero .logo {
+  margin: 0 auto var(--s-3);
+}
+
+/* logo */
+.logo {
+  display: block;
+}
+.logo-animated .logo-plank {
+  animation: bob 4.5s ease-in-out infinite;
+  transform-origin: 30px 28px;
+}
+.logo-animated .logo-wave {
+  animation: sway 6s ease-in-out infinite;
+}
+@keyframes bob {
+  50% {
+    transform: translateY(-3px) rotate(3deg);
+  }
+}
+@keyframes sway {
+  50% {
+    transform: translateX(-2px);
+  }
 }
 
 /* chat */
