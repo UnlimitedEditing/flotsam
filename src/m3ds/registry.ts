@@ -147,7 +147,8 @@ export function identifyPayload(filename: string, data: Uint8Array, expect: Expe
   const format = peekFormat(data)
   if (format && Object.prototype.hasOwnProperty.call(FORMAT_KIND, format)) return FORMAT_KIND[format]
   if (data.length >= 4 && String.fromCharCode(data[0], data[1], data[2], data[3]) === 'glTF') return 'model'
-  for (const [re, kind] of EXT_KIND) if (re.test(filename)) return expect === 'score' && kind === 'text' ? 'score' : kind
+  for (const [re, kind] of EXT_KIND)
+    if (re.test(filename)) return expect === 'score' && kind === 'text' ? 'score' : kind
   if (expect === 'score') return 'score'
   if (expect === 'text') return 'text'
   return 'unknown'

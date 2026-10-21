@@ -95,6 +95,16 @@ Automated in `scripts/e2e-pwa.mjs` with real Rig Studio files: the viewer button
 - [ ] A real direction sheet opens with "Open direction sheet" and reads correctly.
 - [ ] Nothing in the app calls these results "M3DS" except the advanced switch in Settings.
 
+## Library (rigging M2, 2026-10-21)
+
+Automated: store behaviour and limits, serialised writes, wipe rules (`src/library/store.test.ts`); in headless Chrome: a puppet added from its viewer, an image saved from the lightbox, both listed with names and thumbnails, a puppet reopened from storage, rename, delete, survival across a reload, items present in IndexedDB and absent from Cache Storage, usage shown in Settings, and "Clear all data" leaving no library keys.
+
+**Needs your phone:**
+
+- [ ] Add a real puppet to the library, close the app completely, reopen: it is still there and opens.
+- [ ] Library thumbnails are blurred until tapped; Settings shows the item count and size; Delete everything empties it.
+- [ ] After "Clear all data" and signing in again the library is empty; the terms screen asks you to confirm again (the terms text changed).
+
 ## Known gaps
 
 - The mock API proves Flotsam's behaviour, not Graydient's: a real render on each platform is on the phone list.

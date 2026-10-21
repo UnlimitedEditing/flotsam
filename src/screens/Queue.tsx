@@ -47,7 +47,15 @@ export default function Queue() {
           onOpen={(jobId, index) => setLb({ jobId, index })}
         />
       ))}
-      {lb && lbJob && <Lightbox items={lbJob.media} index={lb.index} onClose={() => setLb(null)} />}
+      {lb && lbJob && (
+        <Lightbox
+          items={lbJob.media}
+          index={lb.index}
+          onClose={() => setLb(null)}
+          libraryNsfw={!!lbJob.nsfw}
+          libraryJobId={lbJob.id}
+        />
+      )}
     </main>
   )
 }

@@ -32,6 +32,8 @@ Flotsam is an independent client for a service that can produce adult content. T
 | Notifications              | off     | Generic text only; never prompt, workflow name or image.                                                                                                            |
 | Image host                 | none    | Photos go to the host the user picks, not to Flotsam.                                                                                                               |
 
+**The library** (Gallery > Library) is the one place a copy of generated media is kept: only items the user adds with "Add to library" or "Save to library", stored in IndexedDB (never Cache Storage), with name, kind, size and a small preview. Thumbnails follow the blur rules, items can be renamed and deleted individually, the total is shown in the library and in Settings, limits are 40 MB per item and 400 MB overall, and "Clear all data" empties it (`src/library/store.ts`, guarded by `src/library/store.test.ts` and the end-to-end checks). The terms text was updated to say so and `TERMS_VERSION` bumped to 2026-10-21.1, so everyone re-confirms once.
+
 All data stays on the device: API key (`localStorage`), history, preferences, consent and PIN hash (IndexedDB). The service worker caches only the app shell (guarded by `src/pwa/sw-guard.test.ts`). "Clear all data" wipes localStorage, sessionStorage and IndexedDB and returns to the gate. A forgotten PIN has no recovery; clearing all data is the only way back in.
 
 ## Legal review checklist (needs a human)

@@ -3,6 +3,7 @@ import { probeWorkflows } from '../api/probe'
 import { clearApiKey, getApiKey } from '../api/storage'
 import { getImageHost, imageLoads, makeTestPng } from '../images/hosts/registry'
 import ClearDataButton from '../components/ClearDataButton'
+import LibrarySettings from '../library/LibrarySettings'
 import InstallCard from '../components/InstallCard'
 import UpdatePanel from '../components/UpdatePanel'
 import LockSettings from '../components/LockSettings'
@@ -233,6 +234,7 @@ export default function Settings({ onSignOut }: { onSignOut: () => void }) {
         <button className="ghost" onClick={() => engine.clearAll()}>
           Clear finished jobs
         </button>
+        <LibrarySettings />
         <ClearDataButton />
       </section>
 

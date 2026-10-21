@@ -10,10 +10,20 @@ const memory = new Map<string, unknown>()
 // After "clear all data" nothing may write back (a late save would resurrect what was just wiped).
 let frozen = false
 
+const wipeListeners = new Set<() => void>()
+
+/** Other stores that keep their own in-memory copies (the library) register here so a wipe empties them too. */
+export function onStoreWipe(fn: () => void): void {
+  wipeListeners.add(fn)
+}
+
+export const isStoreFrozen = (): boolean => frozen
+
 /** Wipes everything stored through idbStore and refuses further writes until the page reloads. */
 export async function clearAllStored(): Promise<void> {
   frozen = true
   memory.clear()
+  wipeListeners.forEach((fn) => fn())
   try {
     await clear()
   } catch {

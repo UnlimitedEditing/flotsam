@@ -4,6 +4,7 @@ import { isFinished, type Job } from '../jobs/types'
 import { showManualM3ds, specForJob, viewLabelFor, type OutputSpec } from '../m3ds/registry'
 import { usePrefs } from '../state/prefs'
 import { haptic } from '../lib/haptics'
+import AddToLibraryButton from '../library/AddToLibraryButton'
 import MediaThumb from './MediaThumb'
 
 // The decoder, viewers and three.js load only when a result is opened.
@@ -108,7 +109,20 @@ export default function JobCard({
       </div>
       {panel && (
         <Suspense fallback={null}>
-          <ResultPanel media={job.media} spec={panel} title={job.workflowName} onClose={() => setPanel(null)} />
+          <ResultPanel
+            media={job.media}
+            spec={panel}
+            title={job.workflowName}
+            onClose={() => setPanel(null)}
+            actions={(decoded) => (
+              <AddToLibraryButton
+                decoded={decoded}
+                expect={panel.expect}
+                nsfw={job.nsfw}
+                sourceJobId={job.id}
+              />
+            )}
+          />
         </Suspense>
       )}
     </article>

@@ -3,7 +3,7 @@
 // DRAFT: written by the build agent, NOT reviewed by a lawyer. It must go through legal review before any
 // public release (see docs/privacy-and-terms.md). Bump TERMS_VERSION whenever the meaning changes: everyone
 // is asked to accept again.
-export const TERMS_VERSION = '2026-10-20.1'
+export const TERMS_VERSION = '2026-10-21.1'
 
 export interface TermsSection {
   title: string
@@ -37,7 +37,7 @@ export const TERMS: TermsSection[] = [
     title: 'Your data stays on your device',
     body: [
       'Your API key, history, settings and any PIN are stored only in this browser or app on your device. Flotsam has no account system and no analytics. "Clear all data" in Settings removes it. Clearing your browser data removes it too.',
-      'Generated results are not stored by Flotsam: it keeps links to them, and saves a file only when you tap Save or Share.',
+      'Generated results are not stored by Flotsam: it keeps links to them. It saves a file only when you tap Save or Share, and keeps a copy on this device only when you tap "Add to library" or "Save to library". Library items stay on your device, are shown blurred until you tap them, can be deleted one by one, and are removed by "Clear all data".',
     ],
   },
   {

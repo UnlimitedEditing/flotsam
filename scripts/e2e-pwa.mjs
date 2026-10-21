@@ -382,6 +382,22 @@ try {
     await wait(250)
     const fr = await frame()
     check('puppet_regions_overlay_draws', !!fr && !!fb && fr.sum !== fb.sum)
+    // the explicit keep-it action
+    await page.evaluate(() => {
+      const bar = document.querySelector('.result-panel .lb-bar')
+      ;[...(bar?.querySelectorAll('button') ?? [])]
+        .find((b) => b.textContent.trim() === 'Add to library')
+        ?.click()
+    })
+    await wait(800)
+    check(
+      'add_puppet_to_library',
+      await page.evaluate(() =>
+        [...document.querySelectorAll('.result-panel .lb-bar button')].some(
+          (b) => b.textContent.trim() === 'In your library',
+        ),
+      ),
+    )
     await closePanel()
   } else {
     for (const n of [
@@ -393,6 +409,106 @@ try {
     ])
       check(n, true, 'skipped: no sample puppet')
   }
+  // Library: save an image from the lightbox, list both items, open, rename, delete, and survive a reload.
+  await page.goto(`http://localhost:${APP}/#/gallery`, { waitUntil: 'networkidle0' })
+  await wait(400)
+  await page.click('button.thumb') // reveals (media is blurred by default)
+  await wait(300)
+  await page.click('button.thumb') // opens
+  await page.waitForSelector('.lightbox .lb-bar', { timeout: 5000 }).catch(() => {})
+  await page.evaluate(() => {
+    const bar = document.querySelector('.lightbox .lb-bar')
+    ;[...(bar?.querySelectorAll('button') ?? [])]
+      .find((x) => x.textContent.trim() === 'Save to library')
+      ?.click()
+  })
+  await wait(900)
+  check(
+    'lightbox_saves_image_to_library',
+    await page.evaluate(() => /Saved to library/.test(document.querySelector('.toast')?.textContent ?? '')),
+  )
+  await page.evaluate(() => {
+    const bar = document.querySelector('.lightbox .lb-bar')
+    ;[...(bar?.querySelectorAll('button') ?? [])].find((x) => x.textContent.trim() === 'Close')?.click()
+  })
+  await wait(300)
+  const expectedItems = puppetFile ? 2 : 1
+  await page.goto(`http://localhost:${APP}/#/gallery?tab=library`, { waitUntil: 'networkidle0' })
+  await wait(600)
+  const cards = () => page.$$eval('.lib-card', (n) => n.length)
+  check('library_lists_saved_items', (await cards()) === expectedItems, `cards=${await cards()}`)
+  await page.screenshot({ path: `${SHOTS}/e2e-3e-library.png` })
+  if (puppetFile) {
+    const hasThumb = await page.evaluate(() =>
+      [...document.querySelectorAll('.lib-card')].some(
+        (c) => c.textContent.includes('bluebob2') && !!c.querySelector('img'),
+      ),
+    )
+    check('library_puppet_has_thumbnail_and_name', hasThumb)
+    const tapCard = (name) =>
+      page.evaluate((n) => {
+        const c = [...document.querySelectorAll('.lib-card')].find((x) => x.textContent.includes(n))
+        c?.querySelector('.lib-open')?.click()
+      }, name)
+    await tapCard('bluebob2') // reveal
+    await wait(300)
+    await tapCard('bluebob2') // open
+    await page.waitForSelector('.puppet-stage canvas', { timeout: 20000 }).catch(() => {})
+    await wait(800)
+    check('library_puppet_opens_from_storage', (await page.$('.puppet-stage canvas')) !== null)
+    await closePanel()
+    await page.evaluate(() => {
+      const c = [...document.querySelectorAll('.lib-card')].find((x) => x.textContent.includes('bluebob2'))
+      ;[...(c?.querySelectorAll('button') ?? [])].find((b) => b.textContent.trim() === 'Rename')?.click()
+    })
+    await wait(500)
+    await page.evaluate(() => {
+      const input = document.querySelector('.sheet input')
+      const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+      set.call(input, 'Bob renamed')
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    await clickText(page, '.sheet button', 'Save')
+    await wait(500)
+    check('library_rename', await page.evaluate(() => document.body.innerText.includes('Bob renamed')))
+  }
+  // survives a reload (it is in IndexedDB, not in memory)
+  await page.reload({ waitUntil: 'networkidle0' })
+  await page.goto(`http://localhost:${APP}/#/gallery?tab=library`, { waitUntil: 'networkidle0' })
+  await wait(600)
+  check('library_survives_reload', (await cards()) === expectedItems, `cards=${await cards()}`)
+  const idbLib = await page.evaluate(
+    () =>
+      new Promise((res) => {
+        const r = indexedDB.open('keyval-store')
+        r.onsuccess = () => {
+          const q = r.result.transaction('keyval').objectStore('keyval').getAllKeys()
+          q.onsuccess = () => res(q.result.filter((k) => String(k).startsWith('lib:')).length)
+        }
+        r.onerror = () => res(-1)
+      }),
+  )
+  check('library_is_in_indexeddb', idbLib >= expectedItems + 1, `lib keys=${idbLib}`)
+  const cachedLib = await page.evaluate(async () => {
+    const urls = []
+    for (const k of await caches.keys()) for (const q of await (await caches.open(k)).keys()) urls.push(q.url)
+    return urls.filter((u) => /lib:|puppet.png|sheet.png|img.png/.test(u))
+  })
+  check('library_not_in_cache_storage', cachedLib.length === 0, JSON.stringify(cachedLib))
+  // delete one
+  await page.evaluate(() => {
+    const c = [...document.querySelectorAll('.lib-card')].find((x) => x.textContent.includes('Image '))
+    ;[...(c?.querySelectorAll('button') ?? [])].find((b) => b.textContent.trim() === 'Delete')?.click()
+  })
+  await wait(500)
+  await clickText(page, '.sheet button', 'Delete')
+  await wait(600)
+  check('library_delete', (await cards()) === expectedItems - 1, `cards=${await cards()}`)
+  await page.goto(`http://localhost:${APP}/#/settings`, { waitUntil: 'networkidle0' })
+  check(
+    'settings_shows_library_usage',
+    await page.evaluate(() => /Library: \d+ item/.test(document.body.innerText)),
+  )
   await page.goto(`http://localhost:${APP}/#/settings`, { waitUntil: 'networkidle0' })
   await page.evaluate(() => {
     const l = [...document.querySelectorAll('label')].find((x) => x.textContent.includes('Open as M3DS'))
@@ -565,6 +681,19 @@ try {
     gateBack && !after.ls.includes('flotsam.apiKey'),
     JSON.stringify(after),
   )
+  const libKeysAfter = await page.evaluate(
+    () =>
+      new Promise((res) => {
+        const r = indexedDB.open('keyval-store')
+        r.onsuccess = () => {
+          if (!r.result.objectStoreNames.contains('keyval')) return res(0)
+          const q = r.result.transaction('keyval').objectStore('keyval').getAllKeys()
+          q.onsuccess = () => res(q.result.filter((k) => String(k).startsWith('lib:')).length)
+        }
+        r.onerror = () => res(-1)
+      }),
+  )
+  check('clear_data_empties_the_library', libKeysAfter === 0, `lib keys after wipe=${libKeysAfter}`)
   out._afterClickClear = (await text(page)).slice(-200)
   await page.screenshot({ path: `${SHOTS}/e2e-5-clear.png` })
   await page.close()

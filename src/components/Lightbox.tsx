@@ -1,6 +1,7 @@
 import { useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import type { ResolvedMedia } from '../api/types'
 import { prefersReducedMotion } from '../lib/motion'
+import { saveImageToLibrary } from '../library/save'
 import { downloadMedia, isAudio, isVideo, shareMedia } from '../lib/save'
 
 interface Props {
@@ -9,6 +10,9 @@ interface Props {
   onClose: () => void
   onUseAsInput?: (url: string) => void
   onDelete?: () => void
+  /** When set, images get a "Save to library" button (the user's explicit choice to keep a copy). */
+  libraryNsfw?: boolean
+  libraryJobId?: string
 }
 
 const DISMISS_DISTANCE = 110
@@ -31,7 +35,15 @@ function zoomFromThumb(url: string, img: HTMLElement) {
   )
 }
 
-export default function Lightbox({ items, index, onClose, onUseAsInput, onDelete }: Props) {
+export default function Lightbox({
+  items,
+  index,
+  onClose,
+  onUseAsInput,
+  onDelete,
+  libraryNsfw,
+  libraryJobId,
+}: Props) {
   const [i, setI] = useState(index)
   const [note, setNote] = useState('')
   const [drag, setDrag] = useState({ y: 0, on: false })
@@ -145,6 +157,21 @@ export default function Lightbox({ items, index, onClose, onUseAsInput, onDelete
         >
           Share
         </button>
+        {libraryNsfw !== undefined && !isVideo(m.url, m.mediaType) && !isAudio(m.url, m.mediaType) && (
+          <button
+            className="ghost"
+            onClick={async () => {
+              try {
+                await saveImageToLibrary(m.url, { nsfw: libraryNsfw, sourceJobId: libraryJobId })
+                flash('Saved to library')
+              } catch (e) {
+                flash((e as Error).message)
+              }
+            }}
+          >
+            Save to library
+          </button>
+        )}
         {onUseAsInput && !isVideo(m.url, m.mediaType) && !isAudio(m.url, m.mediaType) && (
           <button className="ghost" onClick={() => onUseAsInput(m.url)}>
             Use as input

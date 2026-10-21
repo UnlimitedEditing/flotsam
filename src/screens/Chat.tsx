@@ -360,6 +360,8 @@ export default function Chat() {
         <Lightbox
           items={lbJob.media}
           index={lb.index}
+          libraryNsfw={!!lbJob.nsfw}
+          libraryJobId={lbJob.id}
           onClose={() => setLb(null)}
           onUseAsInput={(url) => {
             setLb(null)
