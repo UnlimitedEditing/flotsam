@@ -336,6 +336,95 @@ button.icon {
   margin: 0 auto var(--s-3);
 }
 
+/* cards (settings groups) */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  padding: var(--s-1) var(--s-4) var(--s-4);
+  margin: var(--s-3) 0;
+}
+.card > h2:first-child {
+  margin-top: var(--s-3);
+}
+
+/* sheets */
+.sheet-root {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  opacity: var(--sheet-o, 1);
+  animation: fade-in var(--dur-2) var(--ease-out) backwards;
+}
+.sheet {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  max-height: 86%;
+  overflow-y: auto;
+  border-radius: var(--r-3) var(--r-3) 0 0;
+  padding: 0 var(--s-4) max(var(--s-4), env(safe-area-inset-bottom));
+  box-shadow: var(--shadow-2);
+  background: var(--surface-solid);
+  transform: translateY(var(--sheet-y, 0px));
+  transition: transform var(--dur-3) var(--ease-spring);
+  animation: sheet-up var(--dur-3) var(--ease-out) backwards;
+  outline: none;
+}
+.sheet.dragging {
+  transition: none;
+}
+.sheet-grip {
+  display: grid;
+  place-items: center;
+  height: 28px;
+  margin: 0 calc(var(--s-4) * -1);
+  touch-action: none;
+  cursor: grab;
+}
+.sheet-grip span {
+  width: 38px;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+}
+.sheet-title {
+  margin: 0 0 var(--s-2);
+  color: var(--fg);
+  font-size: var(--fs-3);
+  text-transform: none;
+  letter-spacing: -0.01em;
+}
+.sheet-root.closing .sheet-backdrop {
+  animation: sheet-fade-out var(--dur-2) var(--ease-in) forwards;
+}
+.sheet-root.closing .sheet {
+  animation: sheet-down var(--dur-2) var(--ease-in) forwards;
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes sheet-down {
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes sheet-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
 /* skeletons */
 .skeleton-row {
   padding: var(--s-3) 0;
@@ -660,6 +749,7 @@ audio.media {
   font-size: 0.9rem;
 }
 .toggle {
+  padding: 6px 0;
   display: flex;
   gap: 10px;
   align-items: center;

@@ -14,6 +14,7 @@ import { classify, validateNumber, type MediaSlot } from '../lib/schema'
 import { isVisible } from '../lib/visibility'
 import { outputSpec } from '../m3ds/registry'
 import InstallCard from '../components/InstallCard'
+import Sheet from '../components/ui/Sheet'
 import { useOnline } from '../pwa/online'
 import { noteRecent, usePrefs } from '../state/prefs'
 import { useWorkflows } from '../state/useWorkflows'
@@ -239,96 +240,98 @@ export default function Chat() {
           </p>
         )}
 
-        {showOptions && schema && (
-          <div className="options">
-            {schema.size?.mode === 'wh' && (
-              <div className="size">
-                <span>
-                  Size{' '}
-                  <span className="muted">
-                    {schema.size.min ?? ''}–{schema.size.max ?? ''}, default {schema.size.defaultW}×
-                    {schema.size.defaultH}
-                  </span>
-                </span>
-                <div className="row">
-                  <input
-                    inputMode="numeric"
-                    placeholder={String(schema.size.defaultW ?? 'width')}
-                    value={form.width}
-                    onChange={(e) => setForm({ width: e.target.value })}
-                    aria-label="Width"
-                  />
-                  <span>×</span>
-                  <input
-                    inputMode="numeric"
-                    placeholder={String(schema.size.defaultH ?? 'height')}
-                    value={form.height}
-                    onChange={(e) => setForm({ height: e.target.value })}
-                    aria-label="Height"
-                  />
-                </div>
-                <div className="presets">
-                  {PRESETS.filter(
-                    ([w, h]) =>
-                      (schema.size!.min == null || Math.min(w, h) >= schema.size!.min) &&
-                      (schema.size!.max == null || Math.max(w, h) <= schema.size!.max),
-                  ).map(([w, h]) => (
-                    <button
-                      key={`${w}x${h}`}
-                      type="button"
-                      className="ghost small"
-                      onClick={() => setForm({ width: String(w), height: String(h) })}
-                    >
-                      {w}×{h}
-                    </button>
-                  ))}
-                </div>
-                {(numericErrors.width || numericErrors.height) && (
-                  <span className="error">{numericErrors.width ?? numericErrors.height}</span>
-                )}
-              </div>
-            )}
-            {schema.size?.mode === 'size' && (
-              <label>
-                <span>Size</span>
-                <input
-                  placeholder="e.g. 1024x1024"
-                  value={form.sizeText}
-                  onChange={(e) => setForm({ sizeText: e.target.value })}
-                />
-              </label>
-            )}
-            {schema.negativeField && (
-              <input
-                placeholder="Negative prompt"
-                value={form.negative}
-                onChange={(e) => setForm({ negative: e.target.value })}
-              />
-            )}
-            {schema.options.map((o) => (
-              <label key={o.field}>
-                <span>
-                  {o.label}
-                  {o.help ? <span className="muted"> {o.help}</span> : null}
-                  {o.min != null || o.max != null ? (
+        <Sheet open={showOptions && !!schema} onClose={() => setShowOptions(false)} title="Options">
+          {schema && (
+            <div className="options">
+              {schema.size?.mode === 'wh' && (
+                <div className="size">
+                  <span>
+                    Size{' '}
                     <span className="muted">
-                      {' '}
-                      ({o.min ?? ''}–{o.max ?? ''})
+                      {schema.size.min ?? ''}–{schema.size.max ?? ''}, default {schema.size.defaultW}×
+                      {schema.size.defaultH}
                     </span>
-                  ) : null}
-                </span>
+                  </span>
+                  <div className="row">
+                    <input
+                      inputMode="numeric"
+                      placeholder={String(schema.size.defaultW ?? 'width')}
+                      value={form.width}
+                      onChange={(e) => setForm({ width: e.target.value })}
+                      aria-label="Width"
+                    />
+                    <span>×</span>
+                    <input
+                      inputMode="numeric"
+                      placeholder={String(schema.size.defaultH ?? 'height')}
+                      value={form.height}
+                      onChange={(e) => setForm({ height: e.target.value })}
+                      aria-label="Height"
+                    />
+                  </div>
+                  <div className="presets">
+                    {PRESETS.filter(
+                      ([w, h]) =>
+                        (schema.size!.min == null || Math.min(w, h) >= schema.size!.min) &&
+                        (schema.size!.max == null || Math.max(w, h) <= schema.size!.max),
+                    ).map(([w, h]) => (
+                      <button
+                        key={`${w}x${h}`}
+                        type="button"
+                        className="ghost small"
+                        onClick={() => setForm({ width: String(w), height: String(h) })}
+                      >
+                        {w}×{h}
+                      </button>
+                    ))}
+                  </div>
+                  {(numericErrors.width || numericErrors.height) && (
+                    <span className="error">{numericErrors.width ?? numericErrors.height}</span>
+                  )}
+                </div>
+              )}
+              {schema.size?.mode === 'size' && (
+                <label>
+                  <span>Size</span>
+                  <input
+                    placeholder="e.g. 1024x1024"
+                    value={form.sizeText}
+                    onChange={(e) => setForm({ sizeText: e.target.value })}
+                  />
+                </label>
+              )}
+              {schema.negativeField && (
                 <input
-                  inputMode={o.numeric ? 'decimal' : 'text'}
-                  placeholder={o.def}
-                  value={form.options[o.field] ?? ''}
-                  onChange={(e) => setForm({ options: { ...form.options, [o.field]: e.target.value } })}
+                  placeholder="Negative prompt"
+                  value={form.negative}
+                  onChange={(e) => setForm({ negative: e.target.value })}
                 />
-                {o.note && <span className="muted">{o.note}</span>}
-                {numericErrors[o.field] && <span className="error">{numericErrors[o.field]}</span>}
-              </label>
-            ))}
-          </div>
-        )}
+              )}
+              {schema.options.map((o) => (
+                <label key={o.field}>
+                  <span>
+                    {o.label}
+                    {o.help ? <span className="muted"> {o.help}</span> : null}
+                    {o.min != null || o.max != null ? (
+                      <span className="muted">
+                        {' '}
+                        ({o.min ?? ''}–{o.max ?? ''})
+                      </span>
+                    ) : null}
+                  </span>
+                  <input
+                    inputMode={o.numeric ? 'decimal' : 'text'}
+                    placeholder={o.def}
+                    value={form.options[o.field] ?? ''}
+                    onChange={(e) => setForm({ options: { ...form.options, [o.field]: e.target.value } })}
+                  />
+                  {o.note && <span className="muted">{o.note}</span>}
+                  {numericErrors[o.field] && <span className="error">{numericErrors[o.field]}</span>}
+                </label>
+              ))}
+            </div>
+          )}
+        </Sheet>
 
         {err && <p className="error">{err}</p>}
         {missing.length > 0 && (

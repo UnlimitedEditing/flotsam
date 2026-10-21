@@ -328,6 +328,30 @@ try {
   await page.evaluate(() => localStorage.setItem('flotsam.apiKey', 'fake-key-for-e2e-0000'))
   await page.reload({ waitUntil: 'networkidle0' })
   await page.goto(`http://localhost:${APP}/#/settings`, { waitUntil: 'networkidle0' })
+  // Sheet: focus moves into it, Escape closes it after its exit animation, and focus goes back to the button.
+  await page.evaluate(() => {
+    const b = [...document.querySelectorAll('button')].find(
+      (x) => x.textContent.trim() === 'Clear all data on this device',
+    )
+    b?.focus()
+    b?.click()
+  })
+  await wait(450)
+  check(
+    'sheet_opens_with_focus_inside',
+    await page.evaluate(() => !!document.activeElement?.closest('.sheet')),
+  )
+  await page.screenshot({ path: `${SHOTS}/e2e-4b-sheet.png` })
+  await page.keyboard.press('Escape')
+  await wait(450)
+  check(
+    'sheet_escape_closes_and_returns_focus',
+    await page.evaluate(
+      () =>
+        !document.querySelector('.sheet') &&
+        document.activeElement?.textContent?.trim() === 'Clear all data on this device',
+    ),
+  )
   await clickText(page, 'button', 'Clear all data on this device')
   await clickText(page, 'button', 'Yes, clear everything')
   await wait(1500)
