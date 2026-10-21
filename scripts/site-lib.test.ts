@@ -181,6 +181,10 @@ describe('renderPage', () => {
       expect(['github.com', 'unlimitedediting.github.io', 'www.w3.org'].includes(h), h).toBe(true)
   })
 
+  it('asks search engines not to index it', () => {
+    expect(withRelease()).toContain('<meta name="robots" content="noindex, nofollow" />')
+  })
+
   it('embeds the QR code for the page address', () => {
     expect(withRelease()).toContain('<svg></svg>')
     expect(withRelease()).toContain('https://unlimitedediting.github.io/flotsam/')

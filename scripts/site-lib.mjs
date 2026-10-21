@@ -113,6 +113,7 @@ export function renderPage({ repo, siteUrl, pwaUrl = '', fingerprint, release = 
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'" />
+<meta name="robots" content="noindex, nofollow" />
 <meta name="color-scheme" content="dark light" />
 <meta name="description" content="An independent mobile app for your own Graydient account. Not affiliated with Graydient." />
 <title>Flotsam</title>
