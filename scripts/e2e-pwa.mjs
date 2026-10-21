@@ -15,6 +15,12 @@ const PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
   'base64',
 )
+// Real Rig Studio files make the viewer checks meaningful; without them those checks are skipped.
+const SAMPLE_PUPPET =
+  process.env.RIG_SAMPLE_PUPPET ?? 'D:/rig-studio/samples/puppet/bluebob2/bluebob2.rig.png'
+const SAMPLE_SHEET = process.env.RIG_SAMPLE_SHEET ?? 'D:/rig-studio/bench/real1.sheet.png'
+const puppetFile = existsSync(SAMPLE_PUPPET) ? readFileSync(SAMPLE_PUPPET) : null
+const sheetFile = existsSync(SAMPLE_SHEET) ? readFileSync(SAMPLE_SHEET) : null
 const apiLog = []
 const field = (local_field, default_value = null) => ({
   local_field,
@@ -44,6 +50,11 @@ const rigWorkflow = {
   id: '2',
   attributes: { ...workflow.attributes, slug: 'rig-direct', name: 'rig-direct' },
 }
+const puppetWorkflow = {
+  ...workflow,
+  id: '3',
+  attributes: { ...workflow.attributes, slug: 'rig-puppet', name: 'rig-puppet' },
+}
 const cors = {
   'access-control-allow-origin': '*',
   'access-control-allow-headers': '*',
@@ -55,34 +66,52 @@ const mock = createServer((req, res) => {
   if (req.method === 'OPTIONS') return res.writeHead(204, cors).end()
   if (url.pathname === '/img.png')
     return res.writeHead(200, { ...cors, 'content-type': 'image/png' }).end(PNG)
+  if (url.pathname === '/puppet.png' && puppetFile)
+    return res.writeHead(200, { ...cors, 'content-type': 'image/png' }).end(puppetFile)
+  if (url.pathname === '/sheet.png' && sheetFile)
+    return res.writeHead(200, { ...cors, 'content-type': 'image/png' }).end(sheetFile)
   if (url.pathname.endsWith('/workflows/'))
     return res
       .writeHead(200, { ...cors, 'content-type': 'application/json' })
-      .end(JSON.stringify({ data: [workflow, rigWorkflow], links: {} }))
-  const imgs = [
-    {
-      url: `http://localhost:${API}/img.png`,
-      media: [{ url: `http://localhost:${API}/img.png`, media_type: 'image/png' }],
-    },
-  ]
+      .end(JSON.stringify({ data: [workflow, rigWorkflow, puppetWorkflow], links: {} }))
+  const imagesFor = (kind) => {
+    const file =
+      kind === 'puppet' && puppetFile ? 'puppet.png' : kind === 'sheet' && sheetFile ? 'sheet.png' : 'img.png'
+    const u = `http://localhost:${API}/${file}`
+    return [{ url: u, media: [{ url: u, media_type: 'image/png' }] }]
+  }
   if (req.method === 'POST' && url.pathname.endsWith('/render/')) {
-    res.writeHead(200, { ...cors, 'content-type': 'text/event-stream' })
-    res.write(
-      'data: {"event":"render_queued","data":{"render_hash":"mockhash1","estimated_render_time":1}}\n\n',
-    )
-    setTimeout(() => {
-      res.write('data: {"event":"rendering_started","data":{}}\n\n')
-      res.write(
-        `data: ${JSON.stringify({ event: 'rendering_done', data: { render_hash: 'mockhash1', images: imgs } })}\n\n`,
-      )
-      res.end()
-    }, 300)
+    let body = ''
+    req.on('data', (c) => (body += c))
+    req.on('end', () => {
+      let prompt = ''
+      try {
+        prompt = JSON.parse(body).prompt ?? ''
+      } catch {
+        /* not JSON */
+      }
+      const kind = prompt.includes('rig-puppet')
+        ? 'puppet'
+        : prompt.includes('rig-direct')
+          ? 'sheet'
+          : 'plain'
+      const hash = `mockhash-${kind}`
+      res.writeHead(200, { ...cors, 'content-type': 'text/event-stream' })
+      const sse = (event, data) => `data: ${JSON.stringify({ event, data })}\n\n`
+      res.write(sse('render_queued', { render_hash: hash, estimated_render_time: 1 }))
+      setTimeout(() => {
+        res.write(sse('rendering_started', {}))
+        res.write(sse('rendering_done', { render_hash: hash, images: imagesFor(kind) }))
+        res.end()
+      }, 300)
+    })
     return
   }
-  if (url.pathname.includes('/render/mockhash1'))
+  const m = url.pathname.match(/\/render\/mockhash-(plain|sheet|puppet)/)
+  if (m)
     return res
       .writeHead(200, { ...cors, 'content-type': 'application/json' })
-      .end(JSON.stringify({ data: { attributes: { images: imgs, status: 'done' } } }))
+      .end(JSON.stringify({ data: { attributes: { images: imagesFor(m[1]), status: 'done' } } }))
   res.writeHead(404, cors).end('{}')
 })
 const types = {
@@ -250,6 +279,120 @@ try {
   await clickText(page, 'button', 'Send')
   await page.waitForSelector('.view-result', { timeout: 15000 }).catch(() => {})
   check('declared_workflow_shows_view_result', (await page.$('.view-result')) !== null)
+  const viewLabels = () =>
+    page.evaluate(() => [...document.querySelectorAll('.view-result')].map((b) => b.textContent.trim()))
+  check(
+    'viewer_button_is_named_for_the_result',
+    (await viewLabels()).includes('Open direction sheet'),
+    (await viewLabels()).join(' | '),
+  )
+
+  // Real files: the direction sheet opens as readable lines; the puppet opens, moves, and answers its controls.
+  const closePanel = async () => {
+    await page.evaluate(() => {
+      const bar = document.querySelector('.result-panel .lb-bar')
+      ;[...(bar?.querySelectorAll('button') ?? [])].find((b) => b.textContent.trim() === 'Close')?.click()
+    })
+    await wait(300)
+  }
+  if (sheetFile) {
+    await clickText(page, '.view-result', 'Open direction sheet')
+    await page.waitForSelector('.dir-line', { timeout: 20000 }).catch(() => {})
+    const lines = await page.$$eval('.dir-line', (n) => n.length)
+    check('direction_sheet_opens_as_lines', lines > 5, `lines=${lines}`)
+    await page.screenshot({ path: `${SHOTS}/e2e-3c-direction.png` })
+    await closePanel()
+  } else check('direction_sheet_opens_as_lines', true, 'skipped: no sample sheet')
+
+  if (puppetFile) {
+    await page.goto(`http://localhost:${APP}/#/workflows`, { waitUntil: 'networkidle0' })
+    await wait(400)
+    await page.evaluate(() => {
+      const use = [...document.querySelectorAll('button')].find(
+        (b) => b.textContent.trim() === 'Use' && b.closest('li')?.textContent.includes('rig-puppet'),
+      )
+      use?.click()
+    })
+    await wait(400)
+    await page.type('textarea', 'a puppet mock')
+    await clickText(page, 'button', 'Send')
+    await page
+      .waitForFunction(
+        () =>
+          [...document.querySelectorAll('.view-result')].some((b) => b.textContent.trim() === 'Open puppet'),
+        { timeout: 15000 },
+      )
+      .catch(() => {})
+    check(
+      'puppet_button_named',
+      (await viewLabels()).includes('Open puppet'),
+      (await viewLabels()).join(' | '),
+    )
+    await clickText(page, '.view-result', 'Open puppet')
+    await page.waitForSelector('.puppet-stage canvas', { timeout: 20000 }).catch(() => {})
+    await wait(1500)
+    const frame = () =>
+      page.evaluate(() => {
+        const cv = document.querySelector('.puppet-stage canvas')
+        if (!cv) return null
+        const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data
+        let opaque = 0
+        let sum = 0
+        for (let i = 3; i < d.length; i += 4 * 97) {
+          if (d[i] > 20) opaque++
+          sum = (sum * 31 + d[i - 3] + d[i - 2] * 3 + d[i - 1] * 7 + d[i]) % 1000003
+        }
+        return { opaque, sum, w: cv.width, h: cv.height }
+      })
+    const chip = (group, label) =>
+      page.evaluate(
+        (g, l) => {
+          const row = document.querySelector(`[role=group][aria-label="${g}"]`)
+          ;[...(row?.querySelectorAll('button') ?? [])].find((b) => b.textContent.trim() === l)?.click()
+        },
+        group,
+        label,
+      )
+    const f0 = await frame()
+    check('puppet_opens_and_draws', !!f0 && f0.opaque > 200, JSON.stringify(f0))
+    await page.screenshot({ path: `${SHOTS}/e2e-3d-puppet.png` })
+    await chip('Mouth', 'A')
+    await wait(250)
+    const fa = await frame()
+    await chip('Mouth', 'D')
+    await wait(250)
+    const fd = await frame()
+    check(
+      'puppet_mouth_control_changes_the_picture',
+      !!fa && !!fd && fa.sum !== fd.sum,
+      `A=${fa?.sum} D=${fd?.sum}`,
+    )
+    await chip('Brows', 'up3')
+    await wait(250)
+    const fb = await frame()
+    check(
+      'puppet_brows_control_changes_the_picture',
+      !!fb && !!fd && fb.sum !== fd.sum,
+      `D=${fd?.sum} up3=${fb?.sum}`,
+    )
+    await page.evaluate(() => {
+      const l = [...document.querySelectorAll('label')].find((x) => x.textContent.includes('Show regions'))
+      l?.querySelector('input')?.click()
+    })
+    await wait(250)
+    const fr = await frame()
+    check('puppet_regions_overlay_draws', !!fr && !!fb && fr.sum !== fb.sum)
+    await closePanel()
+  } else {
+    for (const n of [
+      'puppet_button_named',
+      'puppet_opens_and_draws',
+      'puppet_mouth_control_changes_the_picture',
+      'puppet_brows_control_changes_the_picture',
+      'puppet_regions_overlay_draws',
+    ])
+      check(n, true, 'skipped: no sample puppet')
+  }
   await page.goto(`http://localhost:${APP}/#/settings`, { waitUntil: 'networkidle0' })
   await page.evaluate(() => {
     const l = [...document.querySelectorAll('label')].find((x) => x.textContent.includes('Open as M3DS'))

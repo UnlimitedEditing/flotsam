@@ -6,7 +6,9 @@ import {
   outputSpec,
   showManualM3ds,
   specForJob,
-  viewerKind,
+  identifyPayload,
+  PAYLOAD_LABEL,
+  viewLabelFor,
   type OutputSpec,
 } from './registry'
 import type { Workflow } from '../api/types'
@@ -86,20 +88,62 @@ describe('showManualM3ds', () => {
   })
 })
 
-describe('viewerKind', () => {
+describe('identifyPayload', () => {
   const bytes = (s: string) => new TextEncoder().encode(s)
-  it('chooses by file name first, then by content, then by expectation', () => {
-    expect(viewerKind('a.glb', bytes('x'), 'unknown')).toBe('model')
-    expect(viewerKind('notes.TXT', bytes('x'), 'model3d')).toBe('text')
-    expect(viewerKind('noext', bytes('glTF....'), 'unknown')).toBe('model')
-    expect(viewerKind('noext', bytes('hello'), 'text')).toBe('text')
-    expect(viewerKind('rig.bin', bytes('hello'), 'rig2d')).toBe('info')
+  const json = (format: string, extra = '') => bytes(`{"format": "${format}", "version": 2${extra}}`)
+
+  it('knows the Rig Studio payloads from their format field, whatever the file is called', () => {
+    expect(identifyPayload('anything.bin', json('rigstudio.puppet'))).toBe('puppet')
+    expect(identifyPayload('d.json', json('rigstudio.direction'))).toBe('direction')
+    expect(identifyPayload('t', json('rigstudio.expression_track'))).toBe('track')
+    expect(identifyPayload('s', json('rigstudio.set'))).toBe('set')
+    expect(identifyPayload('s', json('rigstudio.shot'))).toBe('shot')
   })
 
+  it('falls back to glTF magic, then the file name, then what the workflow declared', () => {
+    expect(identifyPayload('a.glb', bytes('x'), 'unknown')).toBe('model')
+    expect(identifyPayload('noext', bytes('glTF....'), 'unknown')).toBe('model')
+    expect(identifyPayload('notes.TXT', bytes('x'), 'model3d')).toBe('text')
+    expect(identifyPayload('noext', bytes('hello'), 'text')).toBe('text')
+    expect(identifyPayload('song.json', bytes('{"abc":1}'), 'score')).toBe('score')
+    expect(identifyPayload('noext', bytes('hello'), 'score')).toBe('score')
+    expect(identifyPayload('rig.bin', bytes('hello'), 'rig2d')).toBe('unknown')
+  })
+
+  it('does not trust a format that is not at the start, or one it does not know', () => {
+    const late = bytes('{"x": "' + 'a'.repeat(5000) + '", "format": "rigstudio.puppet"}')
+    expect(identifyPayload('f.json', late)).toBe('text')
+    expect(identifyPayload('f.json', json('rigstudio.__proto__'))).toBe('text')
+    expect(identifyPayload('f', json('constructor'))).toBe('unknown')
+    expect(identifyPayload('f', bytes('[{"format": "rigstudio.puppet"}]'))).toBe('unknown')
+  })
+})
+
+describe('labels', () => {
+  it('names the viewer button for what the user gets, never M3DS', () => {
+    expect(viewLabelFor('rig-direct', rig)).toBe('Open direction sheet')
+    expect(viewLabelFor('rig-perform', rig)).toBe('Open performance track')
+    expect(viewLabelFor('rig-track', rig)).toBe('Open performance track')
+    expect(viewLabelFor('rig-puppet-parts', rig)).toBe('Open puppet')
+    expect(viewLabelFor('rig-set-layers', rig)).toBe('View set')
+    expect(viewLabelFor('rig-intent', rig)).toBe('Open rig content')
+    expect(viewLabelFor('music-yue2', score)).toBe('Open score')
+    expect(viewLabelFor('trellis2-native', { carrier: 'm3ds', expect: 'model3d' })).toBe('View 3D model')
+    expect(viewLabelFor('x', null)).toBe('Open result')
+    for (const k of Object.keys(PAYLOAD_LABEL) as Array<keyof typeof PAYLOAD_LABEL>)
+      expect(PAYLOAD_LABEL[k].open + PAYLOAD_LABEL[k].title).not.toMatch(/m3ds/i)
+  })
+})
+
+describe('mismatchNote', () => {
   it('warns when the file is not what the workflow was marked as', () => {
     expect(mismatchNote('model3d', 'text', 'a.txt')).toMatch(/3d model/)
     expect(mismatchNote('model3d', 'model', 'a.glb')).toBeNull()
-    expect(mismatchNote('unknown', 'info', 'a.bin')).toBeNull()
-    expect(mismatchNote('rig2d', 'info', 'a.bin')).toBeNull()
+    expect(mismatchNote('unknown', 'unknown', 'a.bin')).toBeNull()
+    expect(mismatchNote('score', 'text', 'a.json')).toBeNull()
+    expect(mismatchNote('rig2d', 'puppet', 'p')).toBeNull()
+    expect(mismatchNote('rig2d', 'direction', 'p')).toBeNull()
+    expect(mismatchNote('rig2d', 'model', 'a.glb')).toMatch(/a\.glb/)
+    expect(mismatchNote('videoproject', 'unknown', 'a.bin')).toBeNull()
   })
 })

@@ -1,13 +1,13 @@
 import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react'
 import { engine } from '../jobs/instance'
 import { isFinished, type Job } from '../jobs/types'
-import { showManualM3ds, specForJob, type OutputSpec } from '../m3ds/registry'
+import { showManualM3ds, specForJob, viewLabelFor, type OutputSpec } from '../m3ds/registry'
 import { usePrefs } from '../state/prefs'
 import { haptic } from '../lib/haptics'
 import MediaThumb from './MediaThumb'
 
 // The decoder, viewers and three.js load only when a result is opened.
-const M3dsPanel = lazy(() => import('../m3ds/M3dsPanel'))
+const ResultPanel = lazy(() => import('../results/ResultPanel'))
 
 const LABEL: Record<Job['status'], string> = {
   queued: 'Queued',
@@ -42,7 +42,7 @@ export default function JobCard({
   }, [fresh, failedNow])
   const estimate = job.estimatedRenderTime && job.estimatedRenderTime > 0 ? job.estimatedRenderTime : 0
   // The result type is resolved here (not frozen at submit time) so a newly declared workflow, or a changed
-  // override, applies to old results too. Only declared workflows get "View result"; an undeclared result
+  // override, applies to old results too. Only declared workflows get a viewer button; an undeclared result
   // gets the manual M3DS button only if the advanced setting is on.
   const { outputOverrides, manualM3ds } = usePrefs()
   const declared = job.status === 'done' ? (specForJob(job, outputOverrides) ?? undefined) : undefined
@@ -76,7 +76,7 @@ export default function JobCard({
       {job.error && <p className="error">{job.error}</p>}
       {declared && (
         <button className="view-result" onClick={() => setPanel(declared)}>
-          View result
+          {viewLabelFor(job.workflowSlug, declared)}
         </button>
       )}
       {job.media.length > 0 && (
@@ -108,7 +108,7 @@ export default function JobCard({
       </div>
       {panel && (
         <Suspense fallback={null}>
-          <M3dsPanel media={job.media} spec={panel} title={job.workflowName} onClose={() => setPanel(null)} />
+          <ResultPanel media={job.media} spec={panel} title={job.workflowName} onClose={() => setPanel(null)} />
         </Suspense>
       )}
     </article>

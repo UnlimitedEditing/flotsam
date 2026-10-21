@@ -10,12 +10,15 @@ import {
   progress,
   type Chunk,
   type Decoded,
-} from './codec'
-import { EXPECT_LABELS, mismatchNote, viewerKind, type OutputSpec } from './registry'
+} from '../m3ds/codec'
+import { identifyPayload, mismatchNote, PAYLOAD_LABEL, type OutputSpec } from '../m3ds/registry'
 
+// Each viewer (and three.js, and the puppet renderer) loads only when a result of that kind is opened.
 const ModelViewer = lazy(() => import('./viewers/ModelViewer'))
 const TextViewer = lazy(() => import('./viewers/TextViewer'))
 const FileInfo = lazy(() => import('./viewers/FileInfo'))
+const PuppetViewer = lazy(() => import('./viewers/PuppetViewer'))
+const DirectionViewer = lazy(() => import('./viewers/DirectionViewer'))
 
 type State =
   | { phase: 'loading'; step: string }
@@ -24,7 +27,7 @@ type State =
 
 const isPixelMedia = (m: ResolvedMedia) => !/\.(mp4|webm|mov|mp3|wav|ogg|flac|m4a)(\?|$)/i.test(m.url)
 
-/** Reads the job's PNGs, collects M3DS chunks (a big file spans several images) and assembles them. */
+/** Reads the job's PNGs, collects the data chunks (a big file spans several images) and assembles them. */
 async function decodeMedia(
   media: ResolvedMedia[],
   signal: AbortSignal,
@@ -46,7 +49,7 @@ async function decodeMedia(
     const rgb = await pngToRgb(blob)
     if (hasM3dsHeader(rgb)) chunks.push(parseChunk(rgb))
   }
-  if (chunks.length === 0) throw new M3dsError('These images do not contain M3DS data.')
+  if (chunks.length === 0) throw new M3dsError('These images do not contain a result file.')
   const p = progress(chunks)
   if (p.have < p.need)
     throw new M3dsError(
@@ -57,16 +60,24 @@ async function decodeMedia(
 }
 
 interface Props {
-  media: ResolvedMedia[]
+  /** Open a job's result images, or ... */
+  media?: ResolvedMedia[]
+  /** ... a file that is already decoded (an item from the library). */
+  decoded?: Decoded
   spec: OutputSpec
   title?: string
   onClose: () => void
+  /** Extra buttons for the bar (e.g. "Add to library"), given the decoded file. */
+  actions?: (decoded: Decoded) => React.ReactNode
 }
 
-export default function M3dsPanel({ media, spec, title, onClose }: Props) {
-  const [state, setState] = useState<State>({ phase: 'loading', step: 'Starting' })
+export default function ResultPanel({ media, decoded: given, spec, title, onClose, actions }: Props) {
+  const [state, setState] = useState<State>(
+    given ? { phase: 'ready', decoded: given } : { phase: 'loading', step: 'Starting' },
+  )
 
   useEffect(() => {
+    if (given || !media) return
     const ctl = new AbortController()
     if (spec.carrier !== 'm3ds') return
     decodeMedia(media, ctl.signal, (step) => setState({ phase: 'loading', step }))
@@ -75,20 +86,20 @@ export default function M3dsPanel({ media, spec, title, onClose }: Props) {
         if (e.name !== 'AbortError') setState({ phase: 'error', message: e.message })
       })
     return () => ctl.abort()
-  }, [media, spec.carrier])
+  }, [media, given, spec.carrier])
 
   const decoded = state.phase === 'ready' ? state.decoded : null
-  const kind = decoded ? viewerKind(decoded.filename, decoded.data, spec.expect) : null
+  const kind = decoded ? identifyPayload(decoded.filename, decoded.data, spec.expect) : null
   const note = decoded && kind ? mismatchNote(spec.expect, kind, decoded.filename) : null
 
   return (
-    <div className="lightbox m3ds-panel" role="dialog" aria-modal="true">
-      <div className="m3ds-body">
-        <h2 className="m3ds-title">{title ?? EXPECT_LABELS[spec.expect]}</h2>
+    <div className="lightbox result-panel" role="dialog" aria-modal="true">
+      <div className="result-body">
+        <h2 className="result-title">{title ?? (kind ? PAYLOAD_LABEL[kind].title : 'Result')}</h2>
         {spec.carrier === 'pixeldata' && (
           <p className="muted">
             This result uses the pixel-data image format (JSON written straight into pixels). Flotsam cannot
-            decode that format yet.
+            open that format yet.
           </p>
         )}
         {spec.carrier === 'm3ds' && state.phase === 'loading' && <p className="muted">{state.step}…</p>}
@@ -99,15 +110,22 @@ export default function M3dsPanel({ media, spec, title, onClose }: Props) {
             {decoded.chunks > 1 && <p className="muted">Assembled from {decoded.chunks} images.</p>}
             <Suspense fallback={<p className="muted">Loading viewer…</p>}>
               {kind === 'model' && <ModelViewer filename={decoded.filename} data={decoded.data} />}
-              {kind === 'text' && <TextViewer filename={decoded.filename} data={decoded.data} />}
-              {kind === 'info' && <FileInfo filename={decoded.filename} data={decoded.data} />}
+              {(kind === 'text' || kind === 'score' || kind === 'track') && (
+                <TextViewer filename={decoded.filename} data={decoded.data} />
+              )}
+              {kind === 'puppet' && <PuppetViewer filename={decoded.filename} data={decoded.data} />}
+              {kind === 'direction' && <DirectionViewer filename={decoded.filename} data={decoded.data} />}
+              {(kind === 'unknown' || kind === 'set' || kind === 'shot') && (
+                <FileInfo filename={decoded.filename} data={decoded.data} />
+              )}
             </Suspense>
           </>
         )}
       </div>
-      <div className="lb-bar">
+      <div className="lb-bar glass">
+        {decoded && actions?.(decoded)}
         {decoded && (
-          <button onClick={() => saveBytes(decoded.filename, decoded.data)}>
+          <button className="ghost" onClick={() => saveBytes(decoded.filename, decoded.data)}>
             Save {decoded.filename.length > 24 ? 'file' : decoded.filename}
           </button>
         )}

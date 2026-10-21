@@ -85,6 +85,16 @@ Automated (`scripts/e2e-pwa.mjs`, `scripts/check-contrast.mjs`, `src/styles/guar
 - [ ] With Android's "Remove animations" (or the browser's reduced-motion setting) on, screens change without sliding or bouncing.
 - [ ] On an older or slower phone, if scrolling feels heavy, Settings > Appearance > Reduce visual effects makes it smoother.
 
+## Result viewers (rigging M1, 2026-10-21)
+
+Automated in `scripts/e2e-pwa.mjs` with real Rig Studio files: the viewer button is named for the result ("Open direction sheet", "Open puppet"); the direction sheet opens as 34 readable lines; the puppet opens, draws, and its mouth and brow controls change the picture; the regions overlay draws. Unit tests cover payload identification (including hostile input) and bundle validation.
+
+**Needs your phone:**
+
+- [ ] A real puppet result from your account opens with "Open puppet" and blinks and looks around by itself; the mouth, eyes and brow chips change it; it does not stutter on an older phone.
+- [ ] A real direction sheet opens with "Open direction sheet" and reads correctly.
+- [ ] Nothing in the app calls these results "M3DS" except the advanced switch in Settings.
+
 ## Known gaps
 
 - The mock API proves Flotsam's behaviour, not Graydient's: a real render on each platform is on the phone list.

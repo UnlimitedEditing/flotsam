@@ -103,32 +103,112 @@ export function showManualM3ds(
   return manualSetting && !spec && hasPixelMedia
 }
 
-export type ViewerKind = 'model' | 'text' | 'info'
+/**
+ * What a decoded payload actually is. The viewer is chosen from this, not from what the workflow was declared
+ * to return, so a result always opens in the right player (and a surprise is reported rather than misread).
+ */
+export type PayloadKind =
+  | 'model' // glTF / GLB 3D model
+  | 'text' // text, markdown, json, csv
+  | 'score' // YuE2 song score (JSON)
+  | 'puppet' // rigstudio.puppet v2 (a part-based talking-head puppet)
+  | 'direction' // rigstudio.direction (a direction sheet: per-line delivery for a performance)
+  | 'track' // rigstudio.expression_track (animation curves)
+  | 'set' // rigstudio.set (a built room)
+  | 'shot' // rigstudio.shot / shot package (a staged scene)
+  | 'unknown'
 
-const EXT_VIEWER: Array<[RegExp, ViewerKind]> = [
+const FORMAT_KIND: Record<string, PayloadKind> = {
+  'rigstudio.puppet': 'puppet',
+  'rigstudio.direction': 'direction',
+  'rigstudio.expression_track': 'track',
+  'rigstudio.set': 'set',
+  'rigstudio.shot': 'shot',
+}
+
+const EXT_KIND: Array<[RegExp, PayloadKind]> = [
   [/\.(glb|gltf)$/i, 'model'],
   [/\.(txt|md|json|csv|log|srt|vtt|xml|yaml|yml)$/i, 'text'],
 ]
 
-/** The decoded file decides the viewer; `expect` only breaks ties and drives warnings. */
-export function viewerKind(filename: string, data: Uint8Array, expect: Expect): ViewerKind {
-  for (const [re, kind] of EXT_VIEWER) if (re.test(filename)) return kind
-  if (data.length >= 4 && String.fromCharCode(data[0], data[1], data[2], data[3]) === 'glTF') return 'model'
-  if (expect === 'text' || expect === 'score') return 'text'
-  return 'info'
+/**
+ * The `format` field of a JSON payload, read from its first bytes only (the real parse happens in the viewer,
+ * which validates). Rig Studio files all begin with `{"format": "rigstudio.*", ...}`.
+ */
+export function peekFormat(data: Uint8Array): string | null {
+  if (data.length < 2) return null
+  const head = new TextDecoder('utf-8', { fatal: false }).decode(data.subarray(0, 4096))
+  if (!/^\s*\{/.test(head)) return null
+  return head.match(/"format"\s*:\s*"([a-z0-9_.-]{1,60})"/i)?.[1] ?? null
 }
 
-/** A human note when the decoded file is not what the workflow was marked as returning. */
-export function mismatchNote(expect: Expect, kind: ViewerKind, filename: string): string | null {
+/** The data decides: a known `format`, then glTF magic, then the file name, then the declared type. */
+export function identifyPayload(filename: string, data: Uint8Array, expect: Expect = 'unknown'): PayloadKind {
+  const format = peekFormat(data)
+  if (format && Object.prototype.hasOwnProperty.call(FORMAT_KIND, format)) return FORMAT_KIND[format]
+  if (data.length >= 4 && String.fromCharCode(data[0], data[1], data[2], data[3]) === 'glTF') return 'model'
+  for (const [re, kind] of EXT_KIND) if (re.test(filename)) return expect === 'score' && kind === 'text' ? 'score' : kind
+  if (expect === 'score') return 'score'
+  if (expect === 'text') return 'text'
+  return 'unknown'
+}
+
+/** The button / title wording for a payload once it is known. */
+export const PAYLOAD_LABEL: Record<PayloadKind, { open: string; title: string }> = {
+  model: { open: 'View 3D model', title: '3D model' },
+  text: { open: 'Open text', title: 'Text file' },
+  score: { open: 'Open score', title: 'Song score' },
+  puppet: { open: 'Open puppet', title: 'Puppet' },
+  direction: { open: 'Open direction sheet', title: 'Direction sheet' },
+  track: { open: 'Open performance track', title: 'Performance track' },
+  set: { open: 'View set', title: 'Set' },
+  shot: { open: 'Play shot', title: 'Shot' },
+  unknown: { open: 'Open result', title: 'Result' },
+}
+
+/**
+ * The button text before the result is opened, from the workflow and its declared type. Never says "M3DS":
+ * that is how the data travels, not what the user is getting.
+ */
+export function viewLabelFor(slug: string, spec: OutputSpec | null | undefined): string {
+  if (/^rig-puppet/.test(slug)) return PAYLOAD_LABEL.puppet.open
+  if (slug === 'rig-direct') return PAYLOAD_LABEL.direction.open
+  if (slug === 'rig-perform' || slug === 'rig-track') return PAYLOAD_LABEL.track.open
+  if (/^rig-set/.test(slug)) return PAYLOAD_LABEL.set.open
+  switch (spec?.expect) {
+    case 'model3d':
+    case 'scene':
+      return PAYLOAD_LABEL.model.open
+    case 'score':
+      return PAYLOAD_LABEL.score.open
+    case 'text':
+      return PAYLOAD_LABEL.text.open
+    case 'rig2d':
+      return 'Open rig content'
+    case 'videoproject':
+      return 'Open project'
+    default:
+      return PAYLOAD_LABEL.unknown.open
+  }
+}
+
+const RIG_KINDS: PayloadKind[] = ['puppet', 'direction', 'track', 'set', 'shot']
+
+/** A human note when the payload is not what the workflow was marked as returning. */
+export function mismatchNote(expect: Expect, kind: PayloadKind, filename: string): string | null {
   if (expect === 'unknown') return null
-  const want: ViewerKind[] =
+  const want: PayloadKind[] =
     expect === 'model3d' || expect === 'scene'
       ? ['model']
-      : expect === 'text' || expect === 'score'
+      : expect === 'text'
         ? ['text']
-        : []
-  if (want.length === 0) return null // rig2d / videoproject have no viewer yet
+        : expect === 'score'
+          ? ['score', 'text']
+          : expect === 'rig2d'
+            ? RIG_KINDS
+            : []
+  if (want.length === 0) return null // videoproject has no viewer yet
   return want.includes(kind)
     ? null
-    : `This workflow is marked as returning a ${EXPECT_LABELS[expect].toLowerCase()}, but the file is ${filename}.`
+    : `This workflow is marked as returning ${EXPECT_LABELS[expect].toLowerCase()}, but the file is ${filename}.`
 }

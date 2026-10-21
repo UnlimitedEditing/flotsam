@@ -25,7 +25,7 @@ function kinds(w: Workflow): string {
 
 function autoLabel(w: Workflow): string {
   const s = outputSpec(w)
-  return s ? `M3DS: ${EXPECT_LABELS[s.expect]}` : 'ordinary media'
+  return s ? `Opens as: ${EXPECT_LABELS[s.expect]}` : 'ordinary media'
 }
 
 function resultValue(w: Workflow, o: Overrides): string {
@@ -102,7 +102,7 @@ export default function Workflows() {
               <option value="none">Ordinary images / video / audio</option>
               {(Object.keys(EXPECT_LABELS) as Expect[]).map((k) => (
                 <option key={k} value={`m3ds:${k}`}>
-                  M3DS: {EXPECT_LABELS[k]}
+                  Opens as: {EXPECT_LABELS[k]}
                 </option>
               ))}
             </select>

@@ -967,7 +967,7 @@ audio.media {
   grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
   opacity: 0.7;
 }
-.m3ds-body {
+.result-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -977,7 +977,7 @@ audio.media {
   margin: 0 auto;
   color: var(--fg);
 }
-.m3ds-title {
+.result-title {
   margin: 0 0 8px;
   color: var(--fg);
   text-transform: none;
@@ -1019,7 +1019,7 @@ audio.media {
   color: var(--fg);
   font: inherit;
 }
-.m3ds-panel {
+.result-panel {
   background: var(--bg);
 }
 
@@ -1206,4 +1206,89 @@ details h3 {
   border-radius: 12px;
   padding: 10px;
   margin: 8px 0;
+}
+
+/* result viewers: puppet, direction sheet */
+.puppet-stage {
+  position: relative;
+  width: min(100%, 520px);
+  margin: 0 auto var(--s-2);
+  border-radius: var(--r-3);
+  overflow: hidden;
+  background: #fbfaf7;
+  border: 1px solid var(--line);
+}
+.puppet-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.puppet-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: #555;
+}
+.chip-group {
+  margin: var(--s-2) 0;
+}
+.chip-label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: var(--fs-0);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip-btn {
+  padding: 5px 11px;
+  font-size: var(--fs-1);
+  border-radius: var(--r-pill);
+}
+.chip-btn.on {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: var(--on-accent);
+  border-color: transparent;
+  font-weight: 600;
+}
+.puppet-toggles {
+  flex-wrap: wrap;
+  margin-top: var(--s-2);
+}
+.dir-brief {
+  margin: var(--s-2) 0;
+  font-style: italic;
+}
+.dir-lines {
+  list-style: none;
+  padding: 0;
+  margin: var(--s-3) 0 0;
+}
+.dir-line {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  gap: 2px var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--line);
+}
+.dir-time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-1);
+}
+.dir-text {
+  overflow-wrap: anywhere;
+}
+.dir-tags {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
