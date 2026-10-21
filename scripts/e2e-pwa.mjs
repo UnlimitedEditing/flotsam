@@ -300,6 +300,20 @@ try {
   await page.screenshot({ path: `${SHOTS}/e2e-4-offline.png` })
   await page.setOfflineMode(false)
 
+  // Reduced motion: animations collapse to ~0 and the design tokens follow.
+  {
+    const rm = await newPage()
+    await rm.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }])
+    await rm.goto(`http://localhost:${APP}/#/queue`, { waitUntil: 'networkidle0' })
+    await wait(300)
+    const m = await rm.evaluate(() => ({
+      page: getComputedStyle(document.querySelector('.view-page')).animationDuration,
+      token: getComputedStyle(document.documentElement).getPropertyValue('--dur-3').trim(),
+    }))
+    check('reduced_motion_collapses_animation', m.page === '0.001s' && m.token === '1ms', JSON.stringify(m))
+    await rm.close()
+  }
+
   // Small screen and tablet: no horizontal scroll on any screen while signed in.
   for (const [label, w, h] of [
     ['320px', 320, 640],

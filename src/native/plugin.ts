@@ -46,6 +46,7 @@ export interface FlotsamNativePlugin {
   setApiKey(o: { value: string }): Promise<void>
   setFlags(o: { consent?: boolean }): Promise<void>
   clearAll(): Promise<void>
+  haptic(o: { type: 'tap' | 'success' | 'error' | 'select' }): Promise<void>
 
   watchRender(o: { jobId: string; renderHash: string }): Promise<void>
   unwatchRender(o: { jobId: string }): Promise<void>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import JobCard from '../components/JobCard'
 import Lightbox from '../components/Lightbox'
+import EmptyState from '../components/ui/EmptyState'
 import { engine, useJobs } from '../jobs/instance'
 import { isFinished } from '../jobs/types'
 
@@ -23,7 +24,12 @@ export default function Queue() {
       <h1>Queue</h1>
       <p className="muted">Graydient runs one render at a time, so jobs run in order.</p>
       <h2>Active ({live.length})</h2>
-      {live.length === 0 && <p className="muted">Nothing running.</p>}
+      {live.length === 0 && finished.length === 0 && (
+        <EmptyState icon="queue" title="Quiet seas">
+          <p className="muted">Renders you send show up here while they run.</p>
+        </EmptyState>
+      )}
+      {live.length === 0 && finished.length > 0 && <p className="muted">Nothing running.</p>}
       {[...live].reverse().map((j) => (
         <JobCard key={j.id} job={j} highlight={j.id === focus} />
       ))}

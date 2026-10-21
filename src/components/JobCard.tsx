@@ -1,7 +1,8 @@
-import { lazy, Suspense, useState, type CSSProperties } from 'react'
+import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react'
 import { engine } from '../jobs/instance'
 import { isFinished, type Job } from '../jobs/types'
 import type { OutputSpec } from '../m3ds/registry'
+import { haptic } from '../lib/haptics'
 import MediaThumb from './MediaThumb'
 
 // The decoder, viewers and three.js load only when a result is opened.
@@ -33,6 +34,11 @@ export default function JobCard({
   // A job that finishes while its card is on screen gets a short glow; old history does not replay it.
   const [mountedAt] = useState(Date.now)
   const fresh = job.status === 'done' && (job.finishedAt ?? 0) >= mountedAt - 2000
+  const failedNow = job.status === 'failed' && (job.finishedAt ?? 0) >= mountedAt - 2000
+  useEffect(() => {
+    if (fresh) haptic('success')
+    else if (failedNow) haptic('error')
+  }, [fresh, failedNow])
   const estimate = job.estimatedRenderTime && job.estimatedRenderTime > 0 ? job.estimatedRenderTime : 0
   const declared = job.status === 'done' ? job.output : undefined
   // Workflows not marked as M3DS can still be tried by hand: the decoder just checks for the header.

@@ -64,6 +64,14 @@ class FlotsamNativePlugin : Plugin() {
         call.resolve()
     }
 
+    /** A system haptic (success, error, select, tap) through the window, so it follows the user's touch-feedback setting. */
+    @PluginMethod
+    fun haptic(call: PluginCall) {
+        val kind = Haptics.constantFor(call.getString("type"), Build.VERSION.SDK_INT)
+        activity?.runOnUiThread { activity?.window?.decorView?.performHapticFeedback(kind) }
+        call.resolve()
+    }
+
     /** Mirrors flags from the web layer that the background worker needs. */
     @PluginMethod
     fun setFlags(call: PluginCall) {

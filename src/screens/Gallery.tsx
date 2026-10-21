@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Lightbox from '../components/Lightbox'
 import MediaThumb from '../components/MediaThumb'
+import EmptyState from '../components/ui/EmptyState'
 import { engine, useJobs } from '../jobs/instance'
 
 // The gallery is this device's history of completed renders (URLs only). Removing an item removes it
@@ -23,7 +24,11 @@ export default function Gallery() {
   return (
     <main className="page">
       <h1>Gallery</h1>
-      {items.length === 0 && <p className="muted">Finished renders appear here.</p>}
+      {items.length === 0 && (
+        <EmptyState icon="gallery" title="No renders yet">
+          <p className="muted">Finished renders appear here.</p>
+        </EmptyState>
+      )}
       <div className="grid">
         {items.map((it, idx) => (
           <MediaThumb key={it.m.url} media={it.m} forceBlur={it.nsfw} onOpen={() => setOpen(idx)} />

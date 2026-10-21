@@ -15,6 +15,7 @@ import { isVisible } from '../lib/visibility'
 import { outputSpec } from '../m3ds/registry'
 import InstallCard from '../components/InstallCard'
 import Sheet from '../components/ui/Sheet'
+import EmptyState from '../components/ui/EmptyState'
 import { useOnline } from '../pwa/online'
 import { noteRecent, usePrefs } from '../state/prefs'
 import { useWorkflows } from '../state/useWorkflows'
@@ -142,10 +143,10 @@ export default function Chat() {
     <main className="chat">
       <div className="messages">
         {timeline.length === 0 && (
-          <div className="empty">
+          <EmptyState icon="chat" title="Ready when you are">
             <p className="muted">Pick a workflow, type a prompt and send. Results appear here.</p>
             <InstallCard />
-          </div>
+          </EmptyState>
         )}
         {timeline.map((j) => (
           <JobCard key={j.id} job={j} onOpen={(jobId, index) => setLb({ jobId, index })} />

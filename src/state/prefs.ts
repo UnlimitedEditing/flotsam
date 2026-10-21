@@ -16,6 +16,7 @@ export interface Prefs {
   biometricUnlock: boolean // Android: offer fingerprint/face on the lock screen (the PIN always works too)
   catboxUserhash: string // the user's own Catbox account hash (optional; anonymous uploads work)
   theme: 'dark' | 'light'
+  reduceEffects: boolean // solid panels instead of blurred glass (older phones)
   favorites: string[] // workflow slugs
   recents: string[] // workflow slugs, newest first
   lastWorkflow?: string
@@ -35,6 +36,7 @@ export const DEFAULT_PREFS: Prefs = {
   iosHintDismissed: false,
   modelTrendsIds: {},
   theme: 'dark',
+  reduceEffects: false,
   favorites: [],
   recents: [],
 }
@@ -48,9 +50,16 @@ function applyTheme(t: Prefs['theme']) {
   document.documentElement.dataset.theme = t
 }
 
+function applyEffects(reduced: boolean) {
+  if (typeof document === 'undefined') return
+  if (reduced) document.documentElement.dataset.effects = 'reduced'
+  else delete document.documentElement.dataset.effects
+}
+
 export const prefsReady: Promise<void> = idbStore.read<Prefs>(KEY, DEFAULT_PREFS).then((p) => {
   state = { ...DEFAULT_PREFS, ...p }
   applyTheme(state.theme)
+  applyEffects(state.reduceEffects)
   listeners.forEach((l) => l())
 })
 
@@ -66,6 +75,7 @@ export function getPrefs(): Prefs {
 export function setPrefs(patch: Partial<Prefs>): void {
   state = { ...state, ...patch }
   if (patch.theme) applyTheme(state.theme)
+  if (patch.reduceEffects !== undefined) applyEffects(state.reduceEffects)
   listeners.forEach((l) => l())
   void idbStore.write(KEY, state)
 }

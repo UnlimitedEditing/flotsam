@@ -120,6 +120,14 @@ export default function Settings({ onSignOut }: { onSignOut: () => void }) {
             </button>
           ))}
         </div>
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={prefs.reduceEffects}
+            onChange={(e) => setPrefs({ reduceEffects: e.target.checked })}
+          />
+          <span>Reduce visual effects (solid panels instead of blurred glass; helps older phones)</span>
+        </label>
       </section>
       <section className="card">
         <h2>Image host</h2>
