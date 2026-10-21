@@ -1,6 +1,6 @@
 # Rigging in the app
 
-How rig results (puppets, direction sheets, performance tracks, sets, shots) are opened in Flotsam, and how the project library and rig builder fit in. Status: **viewers (M1), library (M2) and the in-app builder (M3a) are done**; the Graydient packing workflow it needs (M3b) is the one remaining piece. See `docs/roadmap/03-rigging-in-app.md` for the brief.
+How rig results (puppets, direction sheets, performance tracks, sets, shots) are opened in Flotsam, and how the project library and rig builder fit in. Status: **viewers (M1), library (M2) and the in-app builder (M3a) are done**; the Graydient packing workflow it needs (M3b) is written and tested locally, and waits to be pushed and restored. See `docs/roadmap/03-rigging-in-app.md` for the brief.
 
 ## Result viewers
 
@@ -48,9 +48,15 @@ You can leave the screen: the build is driven by a controller (`src/rig/builder.
 
 Part sheets are ordinary pictures (`rig-puppet-parts` is declared as such so it gets no viewer button); `rig-puppet-pack` is declared as barcoded rig content.
 
-### The packing workflow (M3b: not yet on Graydient)
+### The packing workflow (M3b: written and tested, waiting to be pushed and restored)
 
-`rig-puppet-pack` does not exist yet. It is the ported `analysis/puppet_rig.py` build (diff the sheets against the base, build one soft mask per region, split the brows, find eyes and pupils, pack the layers) as a ComfyUI node plus a `gen_rigstudio_puppet_pack.py` backup JSON, run through the project's `preflight-plan` first. Until it is restored on Graydient, the builder's last step cannot run against the live API (it is tested end to end against a mock).
+`rig-puppet-pack` is Rig Studio's own packer (`puppet_rig.py`, copied byte-identical and run unchanged) wrapped as the node `RigStudioPuppetPack` in `UnlimitedEditing/ComfyUI-RigStudio` (`nodes_puppet.py`, `rigstudio/puppet_job.py`), plus the workflow backup `D:	ripostl\gen_rigstudio_puppet_pack.py` -> `GraydientWorkflow-rigstudio-puppet-pack-v1.json`.
+
+- **Inputs:** Graydient's `image1` to `image4`, positional (mouth, idle, eyes, brows: the order the builder runs the part renders), plus `prompt_positive` as the puppet's name. The platform stages each image first, so the node accepts a staged filename, a URL or a Telegram reference.
+- **Output:** the puppet as a data-image PNG written by the node itself, plus a preview card through a stock SaveImage.
+- **No model files and no pip entries:** numpy, scipy and Pillow ship in the ComfyUI base image (catalog KI-007 section 1; extra pip entries can crash ComfyUI with a numpy/scipy mismatch).
+- **Verified locally:** with your `bluebob2` sheets it reproduces the PC-built puppet exactly (identical bundle, 49 layers) in about 12 s on CPU under numpy 2.4 and scipy 1.17; 8 tests (validation messages for missing, non-PNG, wrong-size, mismatched and no-change sheets); the node entry point was run against a stand-in for ComfyUI's file helpers. The workflow JSON lints clean.
+- **Not yet verified live:** a real Graydient run. To deploy: push the node commit to `UnlimitedEditing/ComfyUI-RigStudio`, restore the JSON on Graydient as `rig-puppet-pack` (needs your login), then run the builder against your account; after a confirmed run, `harvest-session` records the node signature in the catalog.
 
 ## Next
 

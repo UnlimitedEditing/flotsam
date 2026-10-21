@@ -111,6 +111,7 @@ Automated: controller logic with a fake job engine (order of the four sheet rend
 
 **Needs your phone and a live account:**
 
+- [ ] The node commit is pushed to `UnlimitedEditing/ComfyUI-RigStudio` and `GraydientWorkflow-rigstudio-puppet-pack-v1.json` is restored on Graydient as `rig-puppet-pack`; a first run on a cold machine can take far longer than later ones.
 - [ ] With `rig-puppet-parts` on your account (and `rig-puppet-pack` once it is restored), Make a puppet runs all five renders; closing the app mid-build and reopening carries on.
 - [ ] A real build's puppet opens and looks like the one the Python packer makes from the same sheets.
 - [ ] Without the workflows the screen explains what is missing and does not start.
