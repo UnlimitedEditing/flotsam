@@ -4,7 +4,7 @@ Written 2026-10-21 from Jacob's feedback after the first look at the built app. 
 
 | #   | Brief                                                                                     | Size          | Depends on                                     |
 | --- | ----------------------------------------------------------------------------------------- | ------------- | ---------------------------------------------- |
-| 02  | [M3DS viewer only where a result is barcoded](02-m3ds-gating.md)                          | small (a day) | nothing                                        |
+| 02  | [M3DS viewer only where a result is barcoded](02-m3ds-gating.md) (**done 2026-10-21**)    | small (a day) | nothing                                        |
 | 01  | [UI redesign and motion](01-ui-and-motion.md) (**done 2026-10-21**, see `docs/design.md`) | medium        | nothing (do before 03-05)                      |
 | 03  | [Rigging in the app](03-rigging-in-app.md)                                                | large         | 01, 02                                         |
 | 04  | [Mobile game builder](04-game-builder.md)                                                 | very large    | 01, 03 helps                                   |

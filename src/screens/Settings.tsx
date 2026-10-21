@@ -78,6 +78,14 @@ export default function Settings({ onSignOut }: { onSignOut: () => void }) {
           />
           <span>Show adult workflows (their results are always blurred until tapped)</span>
         </label>
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={prefs.manualM3ds}
+            onChange={(e) => setPrefs({ manualM3ds: e.target.checked })}
+          />
+          <span>Show &quot;Open as M3DS&quot; on every result (advanced, for trying a new workflow)</span>
+        </label>
       </section>
       <section className="card">
         <h2>Privacy</h2>

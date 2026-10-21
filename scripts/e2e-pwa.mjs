@@ -39,6 +39,11 @@ const workflow = {
     supports_txt2wav: false,
   },
 }
+const rigWorkflow = {
+  ...workflow,
+  id: '2',
+  attributes: { ...workflow.attributes, slug: 'rig-direct', name: 'rig-direct' },
+}
 const cors = {
   'access-control-allow-origin': '*',
   'access-control-allow-headers': '*',
@@ -53,7 +58,7 @@ const mock = createServer((req, res) => {
   if (url.pathname.endsWith('/workflows/'))
     return res
       .writeHead(200, { ...cors, 'content-type': 'application/json' })
-      .end(JSON.stringify({ data: [workflow], links: {} }))
+      .end(JSON.stringify({ data: [workflow, rigWorkflow], links: {} }))
   const imgs = [
     {
       url: `http://localhost:${API}/img.png`,
@@ -188,6 +193,12 @@ try {
     (await page.$('button.thumb')) !== null,
     apiLog.filter((l) => l.includes('render')).join(' | '),
   )
+  check(
+    'no_m3ds_button_on_plain_result',
+    await page.evaluate(
+      () => ![...document.querySelectorAll('button')].some((b) => /M3DS|View result/.test(b.textContent)),
+    ),
+  )
   check('blur_default_on', await page.evaluate(() => !!document.querySelector('button.thumb.blurred')))
   await page.screenshot({ path: `${SHOTS}/e2e-3-blurred.png` })
   await page.click('button.thumb')
@@ -225,6 +236,38 @@ try {
     (await page.$('.lightbox')) === null,
     await page.evaluate(() => document.querySelector('.lightbox')?.getAttribute('style') ?? 'closed'),
   )
+  // A declared (barcoded) workflow gets "View result"; an advanced setting adds the manual button to plain results.
+  await page.goto(`http://localhost:${APP}/#/workflows`, { waitUntil: 'networkidle0' })
+  await wait(400)
+  await page.evaluate(() => {
+    const use = [...document.querySelectorAll('button')].find(
+      (b) => b.textContent.trim() === 'Use' && b.closest('li')?.textContent.includes('rig-direct'),
+    )
+    use?.click()
+  })
+  await wait(400)
+  await page.type('textarea', 'a barcoded mock')
+  await clickText(page, 'button', 'Send')
+  await page.waitForSelector('.view-result', { timeout: 15000 }).catch(() => {})
+  check('declared_workflow_shows_view_result', (await page.$('.view-result')) !== null)
+  await page.goto(`http://localhost:${APP}/#/settings`, { waitUntil: 'networkidle0' })
+  await page.evaluate(() => {
+    const l = [...document.querySelectorAll('label')].find((x) => x.textContent.includes('Open as M3DS'))
+    l?.querySelector('input')?.click()
+  })
+  await page.goto(`http://localhost:${APP}/#/queue`, { waitUntil: 'networkidle0' })
+  await wait(400)
+  check(
+    'advanced_setting_adds_manual_button_to_plain_result',
+    await page.evaluate(() =>
+      [...document.querySelectorAll('button')].some((b) => b.textContent.trim() === 'Open as M3DS'),
+    ),
+  )
+  await page.goto(`http://localhost:${APP}/#/settings`, { waitUntil: 'networkidle0' })
+  await page.evaluate(() => {
+    const l = [...document.querySelectorAll('label')].find((x) => x.textContent.includes('Open as M3DS'))
+    l?.querySelector('input')?.click()
+  })
   await page.reload({ waitUntil: 'networkidle0' })
   await page.goto(`http://localhost:${APP}/#/queue`, { waitUntil: 'networkidle0' })
   await wait(500)

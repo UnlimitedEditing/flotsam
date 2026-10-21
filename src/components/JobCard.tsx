@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react'
 import { engine } from '../jobs/instance'
 import { isFinished, type Job } from '../jobs/types'
-import type { OutputSpec } from '../m3ds/registry'
+import { showManualM3ds, specForJob, type OutputSpec } from '../m3ds/registry'
+import { usePrefs } from '../state/prefs'
 import { haptic } from '../lib/haptics'
 import MediaThumb from './MediaThumb'
 
@@ -40,9 +41,12 @@ export default function JobCard({
     else if (failedNow) haptic('error')
   }, [fresh, failedNow])
   const estimate = job.estimatedRenderTime && job.estimatedRenderTime > 0 ? job.estimatedRenderTime : 0
-  const declared = job.status === 'done' ? job.output : undefined
-  // Workflows not marked as M3DS can still be tried by hand: the decoder just checks for the header.
-  const canTry = job.status === 'done' && !declared && hasPixelMedia(job)
+  // The result type is resolved here (not frozen at submit time) so a newly declared workflow, or a changed
+  // override, applies to old results too. Only declared workflows get "View result"; an undeclared result
+  // gets the manual M3DS button only if the advanced setting is on.
+  const { outputOverrides, manualM3ds } = usePrefs()
+  const declared = job.status === 'done' ? (specForJob(job, outputOverrides) ?? undefined) : undefined
+  const canTry = job.status === 'done' && showManualM3ds(declared ?? null, manualM3ds, hasPixelMedia(job))
 
   return (
     <article

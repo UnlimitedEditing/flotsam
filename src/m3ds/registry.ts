@@ -38,14 +38,69 @@ export const EXPECT_LABELS: Record<Expect, string> = {
   unknown: 'Unknown (decide from the file)',
 }
 
+const m3ds = (expect: Expect): OutputSpec => ({ carrier: 'm3ds', expect })
+
 /**
- * Declared spec for a workflow. Order: the user's override, then a safe default from the API's own
- * capability flags (a workflow that produces meshes carries them in M3DS), otherwise none.
+ * Built-in declarations by workflow slug: the workflows known to return a barcoded (M3DS) image. Workflow
+ * backup JSONs carry no slug, so these are the live names. Anything not listed here is ordinary media unless
+ * the user marks it (Workflows > detail > Result type).
+ */
+export const DEFAULT_SPECS: Record<string, OutputSpec> = {
+  'music-yue2': m3ds('score'), // song score JSON packed in a PNG next to the audio
+  'music-yue2-instrumental': m3ds('score'),
+  'trellis2-native': m3ds('model3d'), // returns a smuggled mesh; the API flags do not say "mesh"
+  // Rig Studio's confirmed live workflows (direction sheet, performance track, intent, A2F probe).
+  'rig-direct': m3ds('rig2d'),
+  'rig-perform': m3ds('rig2d'),
+  'rig-track': m3ds('rig2d'),
+  'rig-intent': m3ds('rig2d'),
+  'rigstudio-a2f-probe': m3ds('rig2d'),
+}
+
+/** The rig family by name, for workflows whose exact slug is not known here (puppet, set, segmentation). */
+const DEFAULT_PATTERNS: Array<[RegExp, OutputSpec]> = [
+  [/^rig-/, m3ds('rig2d')],
+  [/^rigstudio-/, m3ds('rig2d')],
+]
+
+export function defaultSpecForSlug(slug: string): OutputSpec | null {
+  if (Object.prototype.hasOwnProperty.call(DEFAULT_SPECS, slug)) return DEFAULT_SPECS[slug]
+  for (const [re, spec] of DEFAULT_PATTERNS) if (re.test(slug)) return spec
+  return null
+}
+
+/**
+ * Declared spec for a workflow. Order: the user's override (`null` = ordinary media), the built-in table,
+ * then a safe default from the API's own capability flags (a workflow that produces meshes carries them
+ * in M3DS), otherwise none.
  */
 export function outputSpec(w: Workflow, overrides: Overrides = {}): OutputSpec | null {
   if (Object.prototype.hasOwnProperty.call(overrides, w.slug)) return overrides[w.slug]
-  if (outputKinds(w).includes('mesh')) return { carrier: 'm3ds', expect: 'model3d' }
+  const known = defaultSpecForSlug(w.slug)
+  if (known) return known
+  if (outputKinds(w).includes('mesh')) return m3ds('model3d')
   return null
+}
+
+/**
+ * The spec for a job already in the history, resolved when it is shown so a newly declared workflow (or a
+ * changed override) applies to old results too. Order: override, what the job stored, the built-in table.
+ */
+export function specForJob(
+  job: { workflowSlug: string; output?: OutputSpec },
+  overrides: Overrides = {},
+): OutputSpec | null {
+  if (Object.prototype.hasOwnProperty.call(overrides, job.workflowSlug)) return overrides[job.workflowSlug]
+  return job.output ?? defaultSpecForSlug(job.workflowSlug)
+}
+
+/** The manual "Open as M3DS" button: only for undeclared results, only when the advanced setting is on. */
+export function showManualM3ds(
+  spec: OutputSpec | null,
+  manualSetting: boolean,
+  hasPixelMedia: boolean,
+): boolean {
+  return manualSetting && !spec && hasPixelMedia
 }
 
 export type ViewerKind = 'model' | 'text' | 'info'
