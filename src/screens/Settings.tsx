@@ -139,6 +139,25 @@ export default function Settings({ onSignOut }: { onSignOut: () => void }) {
         </label>
       </section>
       <section className="card">
+        <h2>Rig builder</h2>
+        <p className="muted">
+          The workflows the puppet builder runs on your Graydient account. Leave blank to use the standard
+          names.
+        </p>
+        <input
+          placeholder="rig-puppet-parts"
+          aria-label="Part sheets workflow"
+          value={prefs.rigPartsSlug}
+          onChange={(e) => setPrefs({ rigPartsSlug: e.target.value })}
+        />
+        <input
+          placeholder="rig-puppet-pack"
+          aria-label="Packing workflow"
+          value={prefs.rigPackSlug}
+          onChange={(e) => setPrefs({ rigPackSlug: e.target.value })}
+        />
+      </section>
+      <section className="card">
         <h2>Image host</h2>
         <p className="muted">
           Graydient can only read inputs from a URL, so photos from this device are uploaded to a host you

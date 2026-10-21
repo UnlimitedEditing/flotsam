@@ -45,7 +45,7 @@ const m3ds = (expect: Expect): OutputSpec => ({ carrier: 'm3ds', expect })
  * backup JSONs carry no slug, so these are the live names. Anything not listed here is ordinary media unless
  * the user marks it (Workflows > detail > Result type).
  */
-export const DEFAULT_SPECS: Record<string, OutputSpec> = {
+export const DEFAULT_SPECS: Record<string, OutputSpec | null> = {
   'music-yue2': m3ds('score'), // song score JSON packed in a PNG next to the audio
   'music-yue2-instrumental': m3ds('score'),
   'trellis2-native': m3ds('model3d'), // returns a smuggled mesh; the API flags do not say "mesh"
@@ -55,6 +55,11 @@ export const DEFAULT_SPECS: Record<string, OutputSpec> = {
   'rig-track': m3ds('rig2d'),
   'rig-intent': m3ds('rig2d'),
   'rigstudio-a2f-probe': m3ds('rig2d'),
+  // The puppet builder's part sheets and probe return ordinary pictures (3x3 sheets), not a barcoded file.
+  'rig-puppet-parts': null,
+  'rig-puppet-probe': null,
+  // The packing step returns the finished puppet.
+  'rig-puppet-pack': m3ds('rig2d'),
 }
 
 /** The rig family by name, for workflows whose exact slug is not known here (puppet, set, segmentation). */

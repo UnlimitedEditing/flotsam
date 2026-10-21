@@ -6,6 +6,7 @@ import { setConsentChecker } from './api/client'
 import { initNative } from './native/init'
 import { startLockWatcher } from './security/lock'
 import { engine } from './jobs/instance'
+import { getBuilder } from './rig/builder'
 import { initInstall } from './pwa/install'
 import { startNotifier } from './pwa/notify'
 import { initPwa } from './pwa/register'
@@ -19,6 +20,7 @@ startLockWatcher()
 initNative()
 initPwa()
 initInstall()
+void getBuilder() // resumes a rig build that was running when the app closed
 startNotifier(
   engine,
   () => getPrefs().notifyDone,

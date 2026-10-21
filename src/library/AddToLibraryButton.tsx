@@ -11,11 +11,13 @@ export default function AddToLibraryButton({
   expect,
   nsfw,
   sourceJobId,
+  name,
 }: {
   decoded: Decoded
   expect?: Expect
   nsfw?: boolean
   sourceJobId?: string
+  name?: string
 }) {
   const [state, setState] = useState<State>('idle')
   const label =
@@ -33,7 +35,7 @@ export default function AddToLibraryButton({
         onClick={async () => {
           setState('saving')
           try {
-            await saveDecodedToLibrary(decoded, { expect, nsfw, sourceJobId })
+            await saveDecodedToLibrary(decoded, { expect, nsfw, sourceJobId, name })
             setState('saved')
           } catch (e) {
             setState({ error: (e as Error).message })

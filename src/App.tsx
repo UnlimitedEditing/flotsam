@@ -10,6 +10,7 @@ import Login from './screens/Login'
 import Queue from './screens/Queue'
 import Settings from './screens/Settings'
 import Share from './screens/Share'
+import RigBuilder from './screens/RigBuilder'
 import NativeEvents from './native/NativeEvents'
 import Workflows from './screens/Workflows'
 import { NativeUpdateBanner, OfflineBanner, UpdateBanner } from './components/Banners'
@@ -79,6 +80,7 @@ function AnimatedView({ onSignOut }: { onSignOut: () => void }) {
           <Route path="/queue" element={<Queue />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/share" element={<Share />} />
+          <Route path="/rig/new" element={<RigBuilder />} />
           <Route path="/settings" element={<Settings onSignOut={onSignOut} />} />
         </Routes>
       </div>

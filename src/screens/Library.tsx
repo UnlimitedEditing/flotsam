@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Lightbox from '../components/Lightbox'
 import EmptyState from '../components/ui/EmptyState'
 import Icon from '../components/ui/Icon'
@@ -25,6 +26,7 @@ type Open =
 /** Everything the user chose to keep on this device. */
 export default function Library() {
   const items = useLibrary()
+  const navigate = useNavigate()
   const { blurNsfw } = usePrefs()
   const [, bump] = useState(0)
   const [open, setOpen] = useState<Open | null>(null)
@@ -64,12 +66,16 @@ export default function Library() {
     return (
       <EmptyState icon="library" title="Nothing saved yet">
         <p className="muted">Use “Add to library” on a result to keep it here.</p>
+        <button onClick={() => navigate('/rig/new')}>Make a puppet</button>
       </EmptyState>
     )
 
   const total = items.reduce((n, i) => n + i.size, 0)
   return (
     <div className="library">
+      <button className="ghost" onClick={() => navigate('/rig/new')}>
+        Make a puppet
+      </button>
       <p className="muted">
         {items.length} {items.length === 1 ? 'item' : 'items'} · {formatBytes(total)} on this device. Only
         things you add appear here.

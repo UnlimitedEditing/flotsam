@@ -105,6 +105,16 @@ Automated: store behaviour and limits, serialised writes, wipe rules (`src/libra
 - [ ] Library thumbnails are blurred until tapped; Settings shows the item count and size; Delete everything empties it.
 - [ ] After "Clear all data" and signing in again the library is empty; the terms screen asks you to confirm again (the terms text changed).
 
+## Rig builder (rigging M3a, 2026-10-21)
+
+Automated: controller logic with a fake job engine (order of the four sheet renders, waiting for all sheets, packing with the four URLs as placeholders, failure cancels the rest, retry, restart from saved state, wipe, input validation); in headless Chrome against the mock: choose a head, start, five steps shown, reload mid-build, it finishes, the commands sent are four `rig-puppet-parts` renders in order then `rig-puppet-pack` with `/image1..4`, the result opens as a puppet and is saved to the library under its name.
+
+**Needs your phone and a live account:**
+
+- [ ] With `rig-puppet-parts` on your account (and `rig-puppet-pack` once it is restored), Make a puppet runs all five renders; closing the app mid-build and reopening carries on.
+- [ ] A real build's puppet opens and looks like the one the Python packer makes from the same sheets.
+- [ ] Without the workflows the screen explains what is missing and does not start.
+
 ## Known gaps
 
 - The mock API proves Flotsam's behaviour, not Graydient's: a real render on each platform is on the phone list.

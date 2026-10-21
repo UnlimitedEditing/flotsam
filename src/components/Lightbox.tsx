@@ -13,6 +13,8 @@ interface Props {
   /** When set, images get a "Save to library" button (the user's explicit choice to keep a copy). */
   libraryNsfw?: boolean
   libraryJobId?: string
+  /** When set, images get a "Make a puppet" button that starts the rig builder with this picture. */
+  onMakePuppet?: (url: string) => void
 }
 
 const DISMISS_DISTANCE = 110
@@ -43,6 +45,7 @@ export default function Lightbox({
   onDelete,
   libraryNsfw,
   libraryJobId,
+  onMakePuppet,
 }: Props) {
   const [i, setI] = useState(index)
   const [note, setNote] = useState('')
@@ -170,6 +173,11 @@ export default function Lightbox({
             }}
           >
             Save to library
+          </button>
+        )}
+        {onMakePuppet && !isVideo(m.url, m.mediaType) && !isAudio(m.url, m.mediaType) && (
+          <button className="ghost" onClick={() => onMakePuppet(m.url)}>
+            Make a puppet
           </button>
         )}
         {onUseAsInput && !isVideo(m.url, m.mediaType) && !isAudio(m.url, m.mediaType) && (

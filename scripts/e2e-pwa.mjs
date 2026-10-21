@@ -22,6 +22,7 @@ const SAMPLE_SHEET = process.env.RIG_SAMPLE_SHEET ?? 'D:/rig-studio/bench/real1.
 const puppetFile = existsSync(SAMPLE_PUPPET) ? readFileSync(SAMPLE_PUPPET) : null
 const sheetFile = existsSync(SAMPLE_SHEET) ? readFileSync(SAMPLE_SHEET) : null
 const apiLog = []
+const renderPrompts = [] // every render command the app sent
 const field = (local_field, default_value = null) => ({
   local_field,
   default_value,
@@ -44,6 +45,16 @@ const workflow = {
     supports_vid2vid: false,
     supports_txt2wav: false,
   },
+}
+const partsWorkflow = {
+  ...workflow,
+  id: '4',
+  attributes: { ...workflow.attributes, slug: 'rig-puppet-parts', name: 'rig-puppet-parts' },
+}
+const packWorkflow = {
+  ...workflow,
+  id: '5',
+  attributes: { ...workflow.attributes, slug: 'rig-puppet-pack', name: 'rig-puppet-pack' },
 }
 const rigWorkflow = {
   ...workflow,
@@ -73,7 +84,12 @@ const mock = createServer((req, res) => {
   if (url.pathname.endsWith('/workflows/'))
     return res
       .writeHead(200, { ...cors, 'content-type': 'application/json' })
-      .end(JSON.stringify({ data: [workflow, rigWorkflow, puppetWorkflow], links: {} }))
+      .end(
+        JSON.stringify({
+          data: [workflow, rigWorkflow, puppetWorkflow, partsWorkflow, packWorkflow],
+          links: {},
+        }),
+      )
   const imagesFor = (kind) => {
     const file =
       kind === 'puppet' && puppetFile ? 'puppet.png' : kind === 'sheet' && sheetFile ? 'sheet.png' : 'img.png'
@@ -90,11 +106,14 @@ const mock = createServer((req, res) => {
       } catch {
         /* not JSON */
       }
-      const kind = prompt.includes('rig-puppet')
-        ? 'puppet'
-        : prompt.includes('rig-direct')
-          ? 'sheet'
-          : 'plain'
+      renderPrompts.push(prompt)
+      const kind = prompt.includes('rig-puppet-parts')
+        ? 'plain' // a part sheet is an ordinary picture
+        : prompt.includes('rig-puppet')
+          ? 'puppet' // the packing step (and the plain rig-puppet workflow) return a finished puppet
+          : prompt.includes('rig-direct')
+            ? 'sheet'
+            : 'plain'
       const hash = `mockhash-${kind}`
       res.writeHead(200, { ...cors, 'content-type': 'text/event-stream' })
       const sse = (event, data) => `data: ${JSON.stringify({ event, data })}\n\n`
@@ -509,6 +528,108 @@ try {
     'settings_shows_library_usage',
     await page.evaluate(() => /Library: \d+ item/.test(document.body.innerText)),
   )
+
+  // Rig builder: pick a head, run the five renders (four sheets, then the pack), reload part-way, open the puppet,
+  // keep it in the library.
+  if (puppetFile) {
+    const promptsBefore = renderPrompts.length
+    await page.goto(`http://localhost:${APP}/#/rig/new`, { waitUntil: 'networkidle0' })
+    await page.waitForSelector('.rig-builder .grid button.thumb', { timeout: 10000 }).catch(() => {})
+    await page.click('.rig-builder .grid button.thumb') // uncover
+    await wait(300)
+    await page.click('.rig-builder .grid button.thumb') // choose
+    await wait(300)
+    check('builder_head_chosen', (await page.$('.rig-chosen')) !== null)
+    await page.evaluate(() => {
+      const input = document.querySelector('input[aria-label="Puppet name"]')
+      const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+      set.call(input, 'E2E Puppet')
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    check(
+      'builder_start_enabled',
+      await page.evaluate(() =>
+        [...document.querySelectorAll('button')].some(
+          (b) => b.textContent.trim() === 'Start building' && !b.disabled,
+        ),
+      ),
+    )
+    await clickText(page, 'button', 'Start building')
+    await page.waitForSelector('.build-steps', { timeout: 10000 }).catch(() => {})
+    check('builder_shows_five_steps', (await page.$$eval('.build-step', (n) => n.length)) === 5)
+    await page.screenshot({ path: `${SHOTS}/e2e-3f-builder-running.png` })
+    // leave and come back mid-build: it keeps going (the controller is not tied to the screen)
+    await wait(600)
+    await page.reload({ waitUntil: 'networkidle0' })
+    await page.goto(`http://localhost:${APP}/#/rig/new`, { waitUntil: 'networkidle0' })
+    const deadline = Date.now() + 70000
+    let finished = false
+    while (Date.now() < deadline) {
+      const state = await page.evaluate(() => {
+        const labels = [...document.querySelectorAll('button')].map((b) => b.textContent.trim())
+        return { open: labels.includes('Open puppet'), retry: labels.includes('Retry the failed step') }
+      })
+      if (state.open) {
+        finished = true
+        break
+      }
+      if (state.retry) await clickText(page, 'button', 'Retry the failed step')
+      await wait(500)
+    }
+    check('builder_finishes_after_a_reload', finished)
+    const sent = renderPrompts.slice(promptsBefore)
+    const slots = sent.filter((p) => p.includes('rig-puppet-parts')).map((p) => p.match(/\/slot1:(\w+)/)?.[1])
+    check(
+      'builder_sends_four_part_renders_in_order',
+      ['mouth', 'idle', 'eyes', 'brows'].every(
+        (s, i) => slots.filter((x) => x === s).length >= 1 && slots.indexOf(s) >= i - 0,
+      ) &&
+        slots.indexOf('mouth') < slots.indexOf('idle') &&
+        slots.indexOf('idle') < slots.indexOf('eyes') &&
+        slots.indexOf('eyes') < slots.indexOf('brows'),
+      slots.join(','),
+    )
+    check(
+      'builder_packs_with_the_four_sheets',
+      sent.some(
+        (p) =>
+          p.includes('/run:rig-puppet-pack') &&
+          ['/image1:URL1', '/image2:URL2', '/image3:URL3', '/image4:URL4'].every((t) => p.includes(t)),
+      ),
+      sent.filter((p) => p.includes('pack')).join(' | '),
+    )
+    await page.screenshot({ path: `${SHOTS}/e2e-3g-builder-done.png` })
+    await clickText(page, 'button', 'Open puppet')
+    await page.waitForSelector('.puppet-stage canvas', { timeout: 20000 }).catch(() => {})
+    await wait(1200)
+    check('builder_result_opens_as_a_puppet', (await page.$('.puppet-stage canvas')) !== null)
+    await page.evaluate(() => {
+      const bar = document.querySelector('.result-panel .lb-bar')
+      ;[...(bar?.querySelectorAll('button') ?? [])]
+        .find((b) => b.textContent.trim() === 'Add to library')
+        ?.click()
+    })
+    await wait(900)
+    await closePanel()
+    await page.goto(`http://localhost:${APP}/#/gallery?tab=library`, { waitUntil: 'networkidle0' })
+    await wait(600)
+    check(
+      'builder_puppet_is_saved_under_its_name',
+      await page.evaluate(() => document.body.innerText.includes('E2E Puppet')),
+    )
+  } else {
+    for (const n of [
+      'builder_head_chosen',
+      'builder_start_enabled',
+      'builder_shows_five_steps',
+      'builder_finishes_after_a_reload',
+      'builder_sends_four_part_renders_in_order',
+      'builder_packs_with_the_four_sheets',
+      'builder_result_opens_as_a_puppet',
+      'builder_puppet_is_saved_under_its_name',
+    ])
+      check(n, true, 'skipped: no sample puppet')
+  }
   await page.goto(`http://localhost:${APP}/#/settings`, { waitUntil: 'networkidle0' })
   await page.evaluate(() => {
     const l = [...document.querySelectorAll('label')].find((x) => x.textContent.includes('Open as M3DS'))

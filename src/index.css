@@ -1389,3 +1389,42 @@ details h3 {
   padding: 7px 6px;
   font-size: var(--fs-1);
 }
+
+/* rig builder */
+.build-steps {
+  list-style: none;
+  padding: 0;
+  margin: var(--s-3) 0;
+}
+.build-step {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px var(--s-2);
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+.build-step.done .status {
+  color: var(--accent);
+}
+.build-step.failed .status,
+.build-step.canceled .status {
+  color: var(--err);
+}
+.build-err {
+  flex-basis: 100%;
+  font-size: var(--fs-1);
+}
+.rig-chosen {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+.rig-chosen .grid {
+  width: 140px;
+  flex: none;
+}
+.filebtn input {
+  display: none;
+}

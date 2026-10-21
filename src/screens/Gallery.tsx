@@ -73,6 +73,7 @@ export default function Gallery() {
               onClose={() => setOpen(null)}
               onUseAsInput={(url) => navigate('/', { state: { imageUrl: url } })}
               onDelete={() => engine.remove(cur.jobId)}
+              onMakePuppet={(url) => navigate('/rig/new', { state: { imageUrl: url } })}
               libraryNsfw={cur.nsfw}
               libraryJobId={cur.jobId}
             />

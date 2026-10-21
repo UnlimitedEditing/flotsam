@@ -43,12 +43,20 @@ describe('built-in declarations', () => {
   })
 
   it('treats the rig family by name, but not look-alikes', () => {
-    expect(defaultSpecForSlug('rig-puppet-parts')).toEqual(rig)
+    expect(defaultSpecForSlug('rig-puppet-pack')).toEqual(rig)
+    expect(defaultSpecForSlug('rig-set-layers')).toEqual(rig)
     expect(defaultSpecForSlug('rigstudio-set')).toEqual(rig)
     expect(defaultSpecForSlug('trigger-happy')).toBeNull()
     expect(defaultSpecForSlug('prerig')).toBeNull()
     expect(defaultSpecForSlug('moss-turbo')).toBeNull()
     expect(defaultSpecForSlug('constructor')).toBeNull() // not a prototype lookup
+  })
+
+  it('leaves the puppet builder part sheets and probe as ordinary pictures, despite the rig-* pattern', () => {
+    expect(defaultSpecForSlug('rig-puppet-parts')).toBeNull()
+    expect(defaultSpecForSlug('rig-puppet-probe')).toBeNull()
+    expect(outputSpec(wf('rig-puppet-parts'))).toBeNull()
+    expect(specForJob({ workflowSlug: 'rig-puppet-parts' })).toBeNull()
   })
 
   it('gives ordinary image workflows nothing', () => {

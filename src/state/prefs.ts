@@ -17,6 +17,8 @@ export interface Prefs {
   catboxUserhash: string // the user's own Catbox account hash (optional; anonymous uploads work)
   theme: 'dark' | 'light'
   reduceEffects: boolean // solid panels instead of blurred glass (older phones)
+  rigPartsSlug: string // rig builder: the part-sheet workflow on this account (blank = the default name)
+  rigPackSlug: string // rig builder: the packing workflow (blank = the default name)
   manualM3ds: boolean // advanced: offer "Open as M3DS" on every undeclared result (to try a new workflow)
   favorites: string[] // workflow slugs
   recents: string[] // workflow slugs, newest first
@@ -39,6 +41,8 @@ export const DEFAULT_PREFS: Prefs = {
   theme: 'dark',
   reduceEffects: false,
   manualM3ds: false,
+  rigPartsSlug: '',
+  rigPackSlug: '',
   favorites: [],
   recents: [],
 }
