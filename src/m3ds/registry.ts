@@ -1,5 +1,6 @@
 import type { Workflow } from '../api/types'
 import { outputKinds } from '../lib/schema'
+import { infoFor, VIEWER_INFO } from '../results/viewerTable'
 
 // Which workflows return data inside images, and what to expect from them. Declared (not sniffed) so a
 // result opens the right viewer straight away and nothing is decoded just because a workflow was tapped.
@@ -109,32 +110,19 @@ export function showManualM3ds(
 }
 
 /**
- * What a decoded payload actually is. The viewer is chosen from this, not from what the workflow was declared
- * to return, so a result always opens in the right player (and a surprise is reported rather than misread).
+ * What a decoded payload actually is: the `kind` of an entry in `../results/viewerTable.ts`. The viewer is chosen
+ * from this, not from what the workflow was declared to return, so a result always opens in the right player (and
+ * a surprise is reported rather than misread). New kinds are added in that table, so this is an open string type.
  */
-export type PayloadKind =
-  | 'model' // glTF / GLB 3D model
-  | 'text' // text, markdown, json, csv
-  | 'score' // YuE2 song score (JSON)
-  | 'puppet' // rigstudio.puppet v2 (a part-based talking-head puppet)
-  | 'direction' // rigstudio.direction (a direction sheet: per-line delivery for a performance)
-  | 'track' // rigstudio.expression_track (animation curves)
-  | 'set' // rigstudio.set (a built room)
-  | 'shot' // rigstudio.shot / shot package (a staged scene)
-  | 'unknown'
+export type PayloadKind = string
 
-const FORMAT_KIND: Record<string, PayloadKind> = {
-  'rigstudio.puppet': 'puppet',
-  'rigstudio.direction': 'direction',
-  'rigstudio.expression_track': 'track',
-  'rigstudio.set': 'set',
-  'rigstudio.shot': 'shot',
-}
+const FORMAT_KIND: Record<string, PayloadKind> = Object.fromEntries(
+  VIEWER_INFO.flatMap((v) => (v.formats ?? []).map((f) => [f, v.kind] as const)),
+)
 
-const EXT_KIND: Array<[RegExp, PayloadKind]> = [
-  [/\.(glb|gltf)$/i, 'model'],
-  [/\.(txt|md|json|csv|log|srt|vtt|xml|yaml|yml)$/i, 'text'],
-]
+const EXT_KIND: Array<[RegExp, PayloadKind]> = VIEWER_INFO.flatMap((v) =>
+  (v.extensions ?? []).map((re) => [re, v.kind] as [RegExp, PayloadKind]),
+)
 
 /**
  * The `format` field of a JSON payload, read from its first bytes only (the real parse happens in the viewer,
@@ -151,7 +139,7 @@ export function peekFormat(data: Uint8Array): string | null {
 export function identifyPayload(filename: string, data: Uint8Array, expect: Expect = 'unknown'): PayloadKind {
   const format = peekFormat(data)
   if (format && Object.prototype.hasOwnProperty.call(FORMAT_KIND, format)) return FORMAT_KIND[format]
-  if (data.length >= 4 && String.fromCharCode(data[0], data[1], data[2], data[3]) === 'glTF') return 'model'
+  for (const v of VIEWER_INFO) if (v.magic?.(data)) return v.kind
   for (const [re, kind] of EXT_KIND)
     if (re.test(filename)) return expect === 'score' && kind === 'text' ? 'score' : kind
   if (expect === 'score') return 'score'
@@ -159,18 +147,11 @@ export function identifyPayload(filename: string, data: Uint8Array, expect: Expe
   return 'unknown'
 }
 
-/** The button / title wording for a payload once it is known. */
-export const PAYLOAD_LABEL: Record<PayloadKind, { open: string; title: string }> = {
-  model: { open: 'View 3D model', title: '3D model' },
-  text: { open: 'Open text', title: 'Text file' },
-  score: { open: 'Open score', title: 'Song score' },
-  puppet: { open: 'Open puppet', title: 'Puppet' },
-  direction: { open: 'Open direction sheet', title: 'Direction sheet' },
-  track: { open: 'Open performance track', title: 'Performance track' },
-  set: { open: 'View set', title: 'Set' },
-  shot: { open: 'Play shot', title: 'Shot' },
-  unknown: { open: 'Open result', title: 'Result' },
-}
+/** The button / title wording for a payload once it is known (from the viewer table). */
+export const PAYLOAD_LABEL: Record<string, { open: string; title: string }> = new Proxy(
+  {},
+  { get: (_t, kind: string) => infoFor(kind) },
+)
 
 /**
  * The button text before the result is opened, from the workflow and its declared type. Never says "M3DS":

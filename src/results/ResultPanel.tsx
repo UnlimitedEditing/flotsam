@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import type { ResolvedMedia } from '../api/types'
 import { saveBytes } from '../lib/save'
 import {
@@ -12,13 +12,7 @@ import {
   type Decoded,
 } from '../m3ds/codec'
 import { identifyPayload, mismatchNote, PAYLOAD_LABEL, type OutputSpec } from '../m3ds/registry'
-
-// Each viewer (and three.js, and the puppet renderer) loads only when a result of that kind is opened.
-const ModelViewer = lazy(() => import('./viewers/ModelViewer'))
-const TextViewer = lazy(() => import('./viewers/TextViewer'))
-const FileInfo = lazy(() => import('./viewers/FileInfo'))
-const PuppetViewer = lazy(() => import('./viewers/PuppetViewer'))
-const DirectionViewer = lazy(() => import('./viewers/DirectionViewer'))
+import { renderViewer } from './registry'
 
 type State =
   | { phase: 'loading'; step: string }
@@ -109,15 +103,11 @@ export default function ResultPanel({ media, decoded: given, spec, title, onClos
             {note && <p className="muted">{note}</p>}
             {decoded.chunks > 1 && <p className="muted">Assembled from {decoded.chunks} images.</p>}
             <Suspense fallback={<p className="muted">Loading viewer…</p>}>
-              {kind === 'model' && <ModelViewer filename={decoded.filename} data={decoded.data} />}
-              {(kind === 'text' || kind === 'score' || kind === 'track') && (
-                <TextViewer filename={decoded.filename} data={decoded.data} />
-              )}
-              {kind === 'puppet' && <PuppetViewer filename={decoded.filename} data={decoded.data} />}
-              {kind === 'direction' && <DirectionViewer filename={decoded.filename} data={decoded.data} />}
-              {(kind === 'unknown' || kind === 'set' || kind === 'shot') && (
-                <FileInfo filename={decoded.filename} data={decoded.data} />
-              )}
+              {renderViewer(kind, {
+                filename: decoded.filename,
+                data: decoded.data,
+                host: { title: title ?? PAYLOAD_LABEL[kind].title, close: onClose },
+              })}
             </Suspense>
           </>
         )}

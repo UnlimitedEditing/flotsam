@@ -1,9 +1,9 @@
 import type { Decoded } from '../m3ds/codec'
-import { identifyPayload, type Expect, type PayloadKind } from '../m3ds/registry'
+import { identifyPayload, type Expect } from '../m3ds/registry'
 import { parsePuppetBundle } from '../rig/puppet'
 import { addToLibrary, LibraryError, LIMITS, type LibraryItem, type LibraryKind } from './store'
 
-const KIND_OF: Record<PayloadKind, LibraryKind> = {
+const KIND_OF: Record<string, LibraryKind> = {
   model: 'model',
   text: 'text',
   score: 'score',
@@ -73,7 +73,7 @@ export async function saveDecodedToLibrary(
   opts: { expect?: Expect; nsfw?: boolean; sourceJobId?: string; name?: string } = {},
 ): Promise<LibraryItem> {
   const payload = identifyPayload(decoded.filename, decoded.data, opts.expect ?? 'unknown')
-  const kind = KIND_OF[payload]
+  const kind = KIND_OF[payload] ?? 'other' // a kind added later with no library icon is kept as a plain file
   let name = opts.name || stem(decoded.filename)
   let thumb: string | undefined
   if (payload === 'puppet') {
