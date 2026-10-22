@@ -21,6 +21,8 @@ const SAMPLE_PUPPET =
 const SAMPLE_SHEET = process.env.RIG_SAMPLE_SHEET ?? 'D:/rig-studio/bench/real1.sheet.png'
 const SCORE_FILE = new URL('./fixtures/demo-score.png', import.meta.url)
 const scoreFile = existsSync(SCORE_FILE) ? readFileSync(SCORE_FILE) : null
+const MODEL_FILE = new URL('./fixtures/demo-model.png', import.meta.url)
+const modelFile = existsSync(MODEL_FILE) ? readFileSync(MODEL_FILE) : null
 const puppetFile = existsSync(SAMPLE_PUPPET) ? readFileSync(SAMPLE_PUPPET) : null
 const sheetFile = existsSync(SAMPLE_SHEET) ? readFileSync(SAMPLE_SHEET) : null
 const apiLog = []
@@ -73,6 +75,11 @@ const scoreWorkflow = {
   id: '6',
   attributes: { ...workflow.attributes, slug: 'music-yue2', name: 'music-yue2' },
 }
+const modelWorkflow = {
+  ...workflow,
+  id: '7',
+  attributes: { ...workflow.attributes, slug: 'trellis2-native', name: 'trellis2-native' },
+}
 const cors = {
   'access-control-allow-origin': '*',
   'access-control-allow-headers': '*',
@@ -88,12 +95,22 @@ const mock = createServer((req, res) => {
     return res.writeHead(200, { ...cors, 'content-type': 'image/png' }).end(puppetFile)
   if (url.pathname === '/score.png' && scoreFile)
     return res.writeHead(200, { ...cors, 'content-type': 'image/png' }).end(scoreFile)
+  if (url.pathname === '/model.png' && modelFile)
+    return res.writeHead(200, { ...cors, 'content-type': 'image/png' }).end(modelFile)
   if (url.pathname === '/sheet.png' && sheetFile)
     return res.writeHead(200, { ...cors, 'content-type': 'image/png' }).end(sheetFile)
   if (url.pathname.endsWith('/workflows/'))
     return res.writeHead(200, { ...cors, 'content-type': 'application/json' }).end(
       JSON.stringify({
-        data: [workflow, rigWorkflow, puppetWorkflow, partsWorkflow, packWorkflow, scoreWorkflow],
+        data: [
+          workflow,
+          rigWorkflow,
+          puppetWorkflow,
+          partsWorkflow,
+          packWorkflow,
+          scoreWorkflow,
+          modelWorkflow,
+        ],
         links: {},
       }),
     )
@@ -105,7 +122,9 @@ const mock = createServer((req, res) => {
           ? 'sheet.png'
           : kind === 'score' && scoreFile
             ? 'score.png'
-            : 'img.png'
+            : kind === 'model' && modelFile
+              ? 'model.png'
+              : 'img.png'
     const u = `http://localhost:${API}/${file}`
     return [{ url: u, media: [{ url: u, media_type: 'image/png' }] }]
   }
@@ -128,7 +147,9 @@ const mock = createServer((req, res) => {
             ? 'sheet'
             : prompt.includes('music-yue2')
               ? 'score'
-              : 'plain'
+              : prompt.includes('trellis2-native')
+                ? 'model'
+                : 'plain'
       const hash = `mockhash-${kind}`
       res.writeHead(200, { ...cors, 'content-type': 'text/event-stream' })
       const sse = (event, data) => `data: ${JSON.stringify({ event, data })}\n\n`
@@ -141,7 +162,7 @@ const mock = createServer((req, res) => {
     })
     return
   }
-  const m = url.pathname.match(/\/render\/mockhash-(plain|sheet|puppet|score)/)
+  const m = url.pathname.match(/\/render\/mockhash-(plain|sheet|puppet|score|model)/)
   if (m)
     return res
       .writeHead(200, { ...cors, 'content-type': 'application/json' })
@@ -392,6 +413,51 @@ try {
     page.off('request', onRequest)
     await closePanel()
   } else check('score_player_lists_sections', true, 'skipped: no demo score fixture')
+
+  // A 3D result (a barcoded GLB) opens in the model viewer, draws something, and answers its controls.
+  if (modelFile) {
+    await page.goto(`http://localhost:${APP}/#/workflows`, { waitUntil: 'networkidle0' })
+    await wait(400)
+    await page.evaluate(() => {
+      const use = [...document.querySelectorAll('button')].find(
+        (b) => b.textContent.trim() === 'Use' && b.closest('li')?.textContent.includes('trellis2-native'),
+      )
+      use?.click()
+    })
+    await wait(400)
+    await page.type('textarea', 'a model mock')
+    await clickText(page, 'button', 'Send')
+    await page
+      .waitForFunction(
+        () =>
+          [...document.querySelectorAll('.view-result')].some(
+            (b) => b.textContent.trim() === 'View 3D model',
+          ),
+        { timeout: 15000 },
+      )
+      .catch(() => {})
+    check(
+      'model_button_named',
+      (await viewLabels()).includes('View 3D model'),
+      (await viewLabels()).join(' | '),
+    )
+    await clickText(page, '.view-result', 'View 3D model')
+    await page.waitForSelector('.model-host canvas', { timeout: 20000 }).catch(() => {})
+    await wait(1500)
+    // a WebGL canvas cannot be read back from the page, so judge the picture by how much detail it compresses to
+    const shot = await (await page.$('.model-host canvas'))?.screenshot()
+    const solid = shot ? shot.length : 0
+    const info = await page.evaluate(() => document.querySelector('.model-wrap .muted')?.textContent ?? '')
+    check('model_opens_and_draws', solid > 8000 && /triangles/.test(info), `png=${solid} bytes info=${info}`)
+    await clickText(page, '.model-wrap button', 'Wireframe')
+    await wait(300)
+    const wireLabel = await page.evaluate(() =>
+      [...document.querySelectorAll('.model-wrap button')].map((b) => b.textContent.trim()).join('|'),
+    )
+    check('model_wireframe_toggle', /Solid/.test(wireLabel), wireLabel)
+    await page.screenshot({ path: `${SHOTS}/e2e-3i-model.png` })
+    await closePanel()
+  } else check('model_opens_and_draws', true, 'skipped: no demo model fixture')
 
   if (puppetFile) {
     await page.goto(`http://localhost:${APP}/#/workflows`, { waitUntil: 'networkidle0' })

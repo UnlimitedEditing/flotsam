@@ -26,8 +26,11 @@ export const VIEWER_INFO: ViewerInfo[] = [
     kind: 'model',
     title: '3D model',
     open: 'View 3D model',
-    extensions: [/\.(glb|gltf)$/i],
-    magic: (d) => d.length >= 4 && String.fromCharCode(d[0], d[1], d[2], d[3]) === 'glTF',
+    extensions: [/\.(glb|gltf|ply|stl|obj)$/i],
+    magic: (d) =>
+      d.length >= 4 &&
+      (String.fromCharCode(d[0], d[1], d[2], d[3]) === 'glTF' || // glTF binary
+        (String.fromCharCode(d[0], d[1], d[2]) === 'ply' && (d[3] === 10 || d[3] === 13))), // PLY header
   },
   {
     kind: 'text',
