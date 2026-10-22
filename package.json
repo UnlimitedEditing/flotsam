@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node --use-system-ca node_modules/vite/bin/vite.js",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
+    "lint": "oxlint --ignore-pattern public/viewers",
     "preview": "vite preview",
     "test": "vite build && vitest run",
     "format": "prettier --write src",

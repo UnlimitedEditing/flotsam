@@ -73,7 +73,7 @@ Do these in this order; each takes a minute or two. Use a throwaway test render 
 
 Automated (`scripts/e2e-pwa.mjs`, `scripts/check-contrast.mjs`, `src/styles/guard.test.ts`, `src/lib/*.test.ts`): colour contrast AA in both themes; lightbox opens, covers the tab bar, short drag springs back, long drag dismisses; sheet opens with focus inside, Escape closes and returns focus; reduced motion collapses animation; privacy cover has no animation or transition; no horizontal scroll at 320 px and tablet width.
 
-**Android after the redesign: partly verified.** The Android unit tests (including the new haptics mapping) pass and the debug APK builds. On the Android 16 emulator the redesigned build passed the first checks of `scripts/e2e-emulator.mjs` (gate, login, key held natively, survives restart, no horizontal scroll). One run then reported `back_leaves_app` as failed (cause not found: it passed on the pre-redesign build, so please confirm Back from the Chat tab leaves the app on your phone), and the emulator's WebView connection kept stalling on later steps (offline launch, sign-out, clear-data), so those were **not re-run on the new build**. They passed on the pre-redesign build (see "Emulator results" above) and passed on the new build in headless Chrome.
+**Android after the redesign: verified on the emulator (2026-10-22).** A fresh debug build (with the score player inside its web layer) ran all 12 checks of `scripts/e2e-emulator.mjs` on the Android 16 emulator: gate, login, key held natively, survives restart, no horizontal scroll, the score player and its libraries are served by the WebView, Back leaves the app, offline launch, sign-out, signed-out state survives restart, clear-data returns to the gate. The earlier `back_leaves_app` failure was the check itself (a fixed 1.5 s wait; minimising can take longer on a loaded emulator): it now polls for up to 8 s and passes. Android 10 is still not verified (see Emulator results).
 
 **Needs your phone (feel cannot be judged by a script):**
 
@@ -94,6 +94,19 @@ Automated in `scripts/e2e-pwa.mjs` with real Rig Studio files: the viewer button
 - [ ] A real puppet result from your account opens with "Open puppet" and blinks and looks around by itself; the mouth, eyes and brow chips change it; it does not stutter on an older phone.
 - [ ] A real direction sheet opens with "Open direction sheet" and reads correctly.
 - [ ] Nothing in the app calls these results "M3DS" except the advanced switch in Settings.
+
+## Viewer system, score player, 3D and summaries (2026-10-22)
+
+Automated in `scripts/e2e-pwa.mjs` (all 69 checks pass): the score opens in the player frame, lists its 3 sections, shows the sound notice and makes **no request to any non-local host**; a GLB model opens, reports its triangles and draws (the canvas is judged by how much detail it compresses to); the wireframe toggle works; track, shot and set results open as readable summaries (the set shows its back wall). Unit tests cover the viewer table and registry (`src/results/registry.test.ts`), the frame-message checks (`src/results/frame/bridge.test.ts`), model format detection and the three summary parsers with hostile input (`src/rig/summary.test.ts`). The service worker keeps embedded tools out of the install and out of its navigation fallback (`vite.config.ts`; `sw-guard.test.ts` unchanged).
+
+**Needs your phone:**
+
+- [ ] A real `music-yue2` result: "Open score" shows the notation and sections; "Allow sounds and play" downloads the sounds and plays a piano sketch (audio starts only after your tap).
+- [ ] The score player is usable one-handed at phone width (sections list, transposing, tempo, saving the edited score gives a PNG file).
+- [ ] The first open of the score player needs a connection; offline it says so (it is not part of the install).
+- [ ] A real Trellis2 or Meshsmuggler model opens with colours and turns smoothly; try a big one on an older phone (the viewer warns above 2 million triangles).
+- [ ] A real performance track, set and shot open as summaries and read sensibly.
+- [ ] Android APK: the installed size grew by about 0.6 MB for the score player; confirm the APK still installs over the previous one.
 
 ## Library (rigging M2, 2026-10-21)
 

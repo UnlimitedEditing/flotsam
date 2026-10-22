@@ -149,13 +149,35 @@ try {
   const layout = await page.evaluate(() => ({ w: innerWidth, sw: document.documentElement.scrollWidth }))
   check('no_horizontal_scroll', layout.sw <= layout.w, JSON.stringify(layout))
 
+  // The embedded score player ships inside the APK's web layer and the WebView serves it (and its libraries).
+  const player = await page.evaluate(async () => {
+    const get = async (u) => {
+      const r = await fetch(u)
+      return { ok: r.ok, type: r.headers.get('content-type') ?? '', bytes: (await r.text()).length }
+    }
+    return {
+      studio: await get('/viewers/groovebox/studio.html'),
+      abc: await get('/viewers/groovebox/vendor/abcjs-basic-min.js'),
+    }
+  })
+  check(
+    'score_player_served_by_webview',
+    player.studio.ok && /html/.test(player.studio.type) && player.abc.ok && player.abc.bytes > 100000,
+    JSON.stringify(player),
+  )
+
   // Back button leaves the app from the home screen.
   adb('shell', 'input', 'keyevent', 'KEYCODE_BACK')
-  await wait(1500)
-  const top =
-    adb('shell', 'dumpsys', 'activity', 'activities')
-      .split('\n')
-      .find((l) => /topResumedActivity|mResumedActivity/.test(l)) ?? ''
+  // Minimising can take several seconds on a loaded emulator (a fixed 1.5 s wait made this check flaky), so poll.
+  let top = ''
+  for (let i = 0; i < 16; i++) {
+    await wait(500)
+    top =
+      adb('shell', 'dumpsys', 'activity', 'activities')
+        .split('\n')
+        .find((l) => /topResumedActivity|mResumedActivity/.test(l)) ?? ''
+    if (!/app\.flotsam\.client/.test(top)) break
+  }
   check('back_leaves_app', !/app\.flotsam\.client/.test(top), top.trim())
   launch()
   await wait(6000)

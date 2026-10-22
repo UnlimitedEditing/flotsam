@@ -58,6 +58,7 @@ On Windows use `gradlew.bat`. Notes: `networkTimeout` in `gradle-wrapper.propert
 
 ## Known limits
 
+- The song-score player (`public/viewers/groovebox/`, about 0.6 MB) is part of the APK's web layer and runs in a same-origin iframe in the WebView; its audio preview downloads instrument sounds only after the user allows it (docs/viewers.md). Real audio on a phone is still to be confirmed.
 - Background checks are best effort (see above) and need the notification permission (Android 13+ asks on first enable).
 - Biometric unlock is a convenience on top of the PIN, not a cryptographic binding.
 - The Android app calls Graydient directly; it does not use the Cloudflare Worker (that is only for the web/PWA version).

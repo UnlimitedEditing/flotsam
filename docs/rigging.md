@@ -6,15 +6,16 @@ How rig results (puppets, direction sheets, performance tracks, sets, shots) are
 
 A result from a workflow that returns a file packed into images (we call the container M3DS internally; users never see that word) opens in a **viewer chosen from the data itself**, not from the workflow's name:
 
-| Payload (`format` field)          | Button                 | Viewer                                                                                                                                                     |
-| --------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| glTF / GLB model                  | View 3D model          | 3D viewer (three.js, orbit)                                                                                                                                |
-| `rigstudio.puppet` v2             | Open puppet            | **Puppet viewer**: live puppet with idle blinking and gaze; hold a mouth shape (rest, A-H, idle set), eyes, brows, where it looks; talk demo; show regions |
-| `rigstudio.direction` v1          | Open direction sheet   | **Direction viewer**: every line with its delivery, intensity and lock; counts per delivery; the director's brief                                          |
-| `rigstudio.expression_track`      | Open performance track | text viewer (a player needs a puppet and audio: next slice)                                                                                                |
-| `rigstudio.set`, `rigstudio.shot` | View set / Play shot   | file info and Save (players come later)                                                                                                                    |
-| YuE2 score                        | Open score             | text viewer                                                                                                                                                |
-| anything else                     | Open result            | file info and Save                                                                                                                                         |
+| Payload (`format` field)             | Button                 | Viewer                                                                                                                                                                     |
+| ------------------------------------ | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3D models: glTF / GLB, OBJ, PLY, STL | View 3D model          | **Model viewer** (three.js): orbit, wireframe, auto-turn, triangle or point count; vertex colours kept; point-cloud PLY as points                                          |
+| `rigstudio.puppet` v2                | Open puppet            | **Puppet viewer**: live puppet with idle blinking and gaze; hold a mouth shape (rest, A-H, idle set), eyes, brows, where it looks; talk demo; show regions                 |
+| `rigstudio.direction` v1             | Open direction sheet   | **Direction viewer**: every line with its delivery, intensity and lock; counts per delivery; the director's brief                                                          |
+| `rigstudio.expression_track`         | Open performance track | **Track summary**: length, frames, who it is for, layers, the most active expressions (a player comes with the staging tool, brief 07)                                     |
+| `rigstudio.set`                      | View set               | **Set summary** with the back wall as a picture; size, field of view, props, faces                                                                                         |
+| `rigstudio.shot`                     | View shot              | **Shot summary**: length, set, camera and light keys, every actor with its keys, moves and lines (playing it is brief 07)                                                  |
+| YuE2 score                           | Open score             | **Score player**: the Groove Box Score Studio (vendored, sandboxed frame): notation, sections, edit and save; sounds only after you allow the download (`docs/viewers.md`) |
+| anything else                        | Open result            | file info and Save                                                                                                                                                         |
 
 `identifyPayload()` in `src/m3ds/registry.ts` reads the `format` field from the first 4 KB (never parsing the whole file), then glTF magic, then the file name, then what the workflow declared. The button label before opening comes from the workflow (`viewLabelFor`): `rig-direct` Open direction sheet, `rig-puppet*` Open puppet, `rig-perform`/`rig-track` Open performance track, `rig-set*` View set, `music-yue2*` Open score, `trellis2-native` View 3D model.
 
