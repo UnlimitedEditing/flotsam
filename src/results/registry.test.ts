@@ -24,11 +24,12 @@ describe('viewer table and registry', () => {
 
   it('falls back to the file-info viewer for a kind with no viewer, and reuses components', () => {
     expect(hasViewer('puppet')).toBe(true)
-    expect(hasViewer('set')).toBe(false)
+    expect(hasViewer('set')).toBe(true)
+    expect(hasViewer('unknown')).toBe(false)
     expect(hasViewer('__proto__')).toBe(false)
-    expect(viewerFor('set')).toBe(viewerFor('shot'))
+    expect(viewerFor('unknown')).toBe(viewerFor('no-such-kind'))
     expect(viewerFor('puppet')).toBe(viewerFor('puppet'))
-    expect(viewerFor('text')).toBe(viewerFor('track'))
+    expect(viewerFor('track')).not.toBe(viewerFor('text'))
     expect(viewerFor('score')).not.toBe(viewerFor('text')) // the score has its own player
   })
 })

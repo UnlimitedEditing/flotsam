@@ -23,6 +23,13 @@ const SCORE_FILE = new URL('./fixtures/demo-score.png', import.meta.url)
 const scoreFile = existsSync(SCORE_FILE) ? readFileSync(SCORE_FILE) : null
 const MODEL_FILE = new URL('./fixtures/demo-model.png', import.meta.url)
 const modelFile = existsSync(MODEL_FILE) ? readFileSync(MODEL_FILE) : null
+const TRACK_FILE = new URL('./fixtures/demo-track.png', import.meta.url)
+const trackFile = existsSync(TRACK_FILE) ? readFileSync(TRACK_FILE) : null
+const SHOT_FILE = new URL('./fixtures/demo-shot.png', import.meta.url)
+const shotFile = existsSync(SHOT_FILE) ? readFileSync(SHOT_FILE) : null
+// A real built set is 4 MB, so it is not kept in the repo: the check is skipped without it.
+const SAMPLE_SET = process.env.RIG_SAMPLE_SET ?? 'D:/rig-studio/samples/sets/kitchen.set.png'
+const setFile = existsSync(SAMPLE_SET) ? readFileSync(SAMPLE_SET) : null
 const puppetFile = existsSync(SAMPLE_PUPPET) ? readFileSync(SAMPLE_PUPPET) : null
 const sheetFile = existsSync(SAMPLE_SHEET) ? readFileSync(SAMPLE_SHEET) : null
 const apiLog = []
@@ -80,6 +87,14 @@ const modelWorkflow = {
   id: '7',
   attributes: { ...workflow.attributes, slug: 'trellis2-native', name: 'trellis2-native' },
 }
+const slugWorkflow = (id, slug) => ({
+  ...workflow,
+  id,
+  attributes: { ...workflow.attributes, slug, name: slug },
+})
+const rigTrackWorkflow = slugWorkflow('8', 'rig-track')
+const rigShotWorkflow = slugWorkflow('9', 'rig-shot')
+const rigSetWorkflow = slugWorkflow('10', 'rig-set')
 const cors = {
   'access-control-allow-origin': '*',
   'access-control-allow-headers': '*',
@@ -97,6 +112,13 @@ const mock = createServer((req, res) => {
     return res.writeHead(200, { ...cors, 'content-type': 'image/png' }).end(scoreFile)
   if (url.pathname === '/model.png' && modelFile)
     return res.writeHead(200, { ...cors, 'content-type': 'image/png' }).end(modelFile)
+  for (const [name, file] of [
+    ['track', trackFile],
+    ['shot', shotFile],
+    ['set', setFile],
+  ])
+    if (url.pathname === `/${name}.png` && file)
+      return res.writeHead(200, { ...cors, 'content-type': 'image/png' }).end(file)
   if (url.pathname === '/sheet.png' && sheetFile)
     return res.writeHead(200, { ...cors, 'content-type': 'image/png' }).end(sheetFile)
   if (url.pathname.endsWith('/workflows/'))
@@ -110,6 +132,9 @@ const mock = createServer((req, res) => {
           packWorkflow,
           scoreWorkflow,
           modelWorkflow,
+          rigTrackWorkflow,
+          rigShotWorkflow,
+          rigSetWorkflow,
         ],
         links: {},
       }),
@@ -124,7 +149,9 @@ const mock = createServer((req, res) => {
             ? 'score.png'
             : kind === 'model' && modelFile
               ? 'model.png'
-              : 'img.png'
+              : ['track', 'shot', 'set'].includes(kind)
+                ? `${kind}.png`
+                : 'img.png'
     const u = `http://localhost:${API}/${file}`
     return [{ url: u, media: [{ url: u, media_type: 'image/png' }] }]
   }
@@ -139,17 +166,23 @@ const mock = createServer((req, res) => {
         /* not JSON */
       }
       renderPrompts.push(prompt)
-      const kind = prompt.includes('rig-puppet-parts')
-        ? 'plain' // a part sheet is an ordinary picture
-        : prompt.includes('rig-puppet')
-          ? 'puppet' // the packing step (and the plain rig-puppet workflow) return a finished puppet
-          : prompt.includes('rig-direct')
-            ? 'sheet'
-            : prompt.includes('music-yue2')
-              ? 'score'
-              : prompt.includes('trellis2-native')
-                ? 'model'
-                : 'plain'
+      const kind = prompt.includes('rig-track')
+        ? 'track'
+        : prompt.includes('rig-shot')
+          ? 'shot'
+          : prompt.includes('rig-set')
+            ? 'set'
+            : prompt.includes('rig-puppet-parts')
+              ? 'plain' // a part sheet is an ordinary picture
+              : prompt.includes('rig-puppet')
+                ? 'puppet' // the packing step (and the plain rig-puppet workflow) return a finished puppet
+                : prompt.includes('rig-direct')
+                  ? 'sheet'
+                  : prompt.includes('music-yue2')
+                    ? 'score'
+                    : prompt.includes('trellis2-native')
+                      ? 'model'
+                      : 'plain'
       const hash = `mockhash-${kind}`
       res.writeHead(200, { ...cors, 'content-type': 'text/event-stream' })
       const sse = (event, data) => `data: ${JSON.stringify({ event, data })}\n\n`
@@ -162,7 +195,7 @@ const mock = createServer((req, res) => {
     })
     return
   }
-  const m = url.pathname.match(/\/render\/mockhash-(plain|sheet|puppet|score|model)/)
+  const m = url.pathname.match(/\/render\/mockhash-(plain|sheet|puppet|score|model|track|shot|set)/)
   if (m)
     return res
       .writeHead(200, { ...cors, 'content-type': 'application/json' })
@@ -458,6 +491,42 @@ try {
     await page.screenshot({ path: `${SHOTS}/e2e-3i-model.png` })
     await closePanel()
   } else check('model_opens_and_draws', true, 'skipped: no demo model fixture')
+
+  // Track, set and shot have no player yet: each opens a readable summary (not raw text or a byte dump).
+  for (const [slug, file, button, key, expectText] of [
+    ['rig-track', trackFile, 'Open performance track', 'track', /Length[\s\S]*3\.0 s[\s\S]*eyeBlink_L/],
+    ['rig-shot', shotFile, 'Open rig content', 'shot', /In the shot[\s\S]*bob[\s\S]*puppet/],
+    ['rig-set', setFile, 'View set', 'set', /Picture size[\s\S]*Props/],
+  ]) {
+    if (!file) {
+      check(`${key}_summary_opens`, true, 'skipped: no sample file')
+      continue
+    }
+    await page.goto(`http://localhost:${APP}/#/workflows`, { waitUntil: 'networkidle0' })
+    await wait(400)
+    await page.evaluate((slug) => {
+      const use = [...document.querySelectorAll('button')].find(
+        (b) => b.textContent.trim() === 'Use' && b.closest('li')?.textContent.includes(slug),
+      )
+      use?.click()
+    }, slug)
+    await wait(400)
+    await page.type('textarea', `a ${key} mock`)
+    await clickText(page, 'button', 'Send')
+    await page
+      .waitForFunction(
+        (label) => [...document.querySelectorAll('.view-result')].some((b) => b.textContent.trim() === label),
+        { timeout: 15000 },
+        button,
+      )
+      .catch(() => {})
+    await clickText(page, '.view-result', button)
+    await page.waitForSelector('.summary', { timeout: 20000 }).catch(() => {})
+    const body = await page.evaluate(() => document.querySelector('.summary')?.innerText ?? '')
+    check(`${key}_summary_opens`, expectText.test(body), body.replace(/\s+/g, ' ').slice(0, 160))
+    if (key === 'set') await page.screenshot({ path: `${SHOTS}/e2e-3j-set.png` })
+    await closePanel()
+  }
 
   if (puppetFile) {
     await page.goto(`http://localhost:${APP}/#/workflows`, { waitUntil: 'networkidle0' })

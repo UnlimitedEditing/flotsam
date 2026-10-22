@@ -53,7 +53,7 @@ export const VIEWER_INFO: ViewerInfo[] = [
     formats: ['rigstudio.expression_track'],
   },
   { kind: 'set', title: 'Set', open: 'View set', formats: ['rigstudio.set'] },
-  { kind: 'shot', title: 'Shot', open: 'Play shot', formats: ['rigstudio.shot'] },
+  { kind: 'shot', title: 'Shot', open: 'View shot', formats: ['rigstudio.shot'] },
   { kind: 'unknown', title: 'Result', open: 'Open result' },
 ]
 
