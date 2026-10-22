@@ -50,7 +50,11 @@ export default defineConfig(({ mode }) => ({
             workbox: {
               // Precache ONLY our own build output (app shell + static assets).
               globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+              // Embedded tools (docs/viewers.md, frame mode) are fetched when a result of that kind is opened, not at install.
+              globIgnores: ['viewers/**'],
               navigateFallback: 'index.html',
+              // An embedded tool's page is a navigation too: without this the worker answers it with the app itself.
+              navigateFallbackDenylist: [/\/viewers\//],
               cleanupOutdatedCaches: true,
               // NO runtime caching, deliberately. API responses, uploads, ModelTrends and generated media
               // (including adult content and M3DS images) must always go to the network and never be written to

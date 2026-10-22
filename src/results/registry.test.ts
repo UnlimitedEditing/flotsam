@@ -28,6 +28,7 @@ describe('viewer table and registry', () => {
     expect(hasViewer('__proto__')).toBe(false)
     expect(viewerFor('set')).toBe(viewerFor('shot'))
     expect(viewerFor('puppet')).toBe(viewerFor('puppet'))
-    expect(viewerFor('text')).toBe(viewerFor('score'))
+    expect(viewerFor('text')).toBe(viewerFor('track'))
+    expect(viewerFor('score')).not.toBe(viewerFor('text')) // the score has its own player
   })
 })

@@ -19,6 +19,8 @@ const PNG = Buffer.from(
 const SAMPLE_PUPPET =
   process.env.RIG_SAMPLE_PUPPET ?? 'D:/rig-studio/samples/puppet/bluebob2/bluebob2.rig.png'
 const SAMPLE_SHEET = process.env.RIG_SAMPLE_SHEET ?? 'D:/rig-studio/bench/real1.sheet.png'
+const SCORE_FILE = new URL('./fixtures/demo-score.png', import.meta.url)
+const scoreFile = existsSync(SCORE_FILE) ? readFileSync(SCORE_FILE) : null
 const puppetFile = existsSync(SAMPLE_PUPPET) ? readFileSync(SAMPLE_PUPPET) : null
 const sheetFile = existsSync(SAMPLE_SHEET) ? readFileSync(SAMPLE_SHEET) : null
 const apiLog = []
@@ -66,6 +68,11 @@ const puppetWorkflow = {
   id: '3',
   attributes: { ...workflow.attributes, slug: 'rig-puppet', name: 'rig-puppet' },
 }
+const scoreWorkflow = {
+  ...workflow,
+  id: '6',
+  attributes: { ...workflow.attributes, slug: 'music-yue2', name: 'music-yue2' },
+}
 const cors = {
   'access-control-allow-origin': '*',
   'access-control-allow-headers': '*',
@@ -79,18 +86,26 @@ const mock = createServer((req, res) => {
     return res.writeHead(200, { ...cors, 'content-type': 'image/png' }).end(PNG)
   if (url.pathname === '/puppet.png' && puppetFile)
     return res.writeHead(200, { ...cors, 'content-type': 'image/png' }).end(puppetFile)
+  if (url.pathname === '/score.png' && scoreFile)
+    return res.writeHead(200, { ...cors, 'content-type': 'image/png' }).end(scoreFile)
   if (url.pathname === '/sheet.png' && sheetFile)
     return res.writeHead(200, { ...cors, 'content-type': 'image/png' }).end(sheetFile)
   if (url.pathname.endsWith('/workflows/'))
     return res.writeHead(200, { ...cors, 'content-type': 'application/json' }).end(
       JSON.stringify({
-        data: [workflow, rigWorkflow, puppetWorkflow, partsWorkflow, packWorkflow],
+        data: [workflow, rigWorkflow, puppetWorkflow, partsWorkflow, packWorkflow, scoreWorkflow],
         links: {},
       }),
     )
   const imagesFor = (kind) => {
     const file =
-      kind === 'puppet' && puppetFile ? 'puppet.png' : kind === 'sheet' && sheetFile ? 'sheet.png' : 'img.png'
+      kind === 'puppet' && puppetFile
+        ? 'puppet.png'
+        : kind === 'sheet' && sheetFile
+          ? 'sheet.png'
+          : kind === 'score' && scoreFile
+            ? 'score.png'
+            : 'img.png'
     const u = `http://localhost:${API}/${file}`
     return [{ url: u, media: [{ url: u, media_type: 'image/png' }] }]
   }
@@ -111,7 +126,9 @@ const mock = createServer((req, res) => {
           ? 'puppet' // the packing step (and the plain rig-puppet workflow) return a finished puppet
           : prompt.includes('rig-direct')
             ? 'sheet'
-            : 'plain'
+            : prompt.includes('music-yue2')
+              ? 'score'
+              : 'plain'
       const hash = `mockhash-${kind}`
       res.writeHead(200, { ...cors, 'content-type': 'text/event-stream' })
       const sse = (event, data) => `data: ${JSON.stringify({ event, data })}\n\n`
@@ -124,7 +141,7 @@ const mock = createServer((req, res) => {
     })
     return
   }
-  const m = url.pathname.match(/\/render\/mockhash-(plain|sheet|puppet)/)
+  const m = url.pathname.match(/\/render\/mockhash-(plain|sheet|puppet|score)/)
   if (m)
     return res
       .writeHead(200, { ...cors, 'content-type': 'application/json' })
@@ -321,6 +338,60 @@ try {
     await page.screenshot({ path: `${SHOTS}/e2e-3c-direction.png` })
     await closePanel()
   } else check('direction_sheet_opens_as_lines', true, 'skipped: no sample sheet')
+
+  // A song score opens in the vendored Groove Box Score Studio (frame mode): the page starts, takes the file over
+  // the bridge, lists its sections, loads nothing from the internet, and asks before downloading instrument sounds.
+  if (scoreFile) {
+    const external = []
+    const onRequest = (r) => {
+      const u = new URL(r.url())
+      if (!['localhost', '127.0.0.1'].includes(u.hostname) && u.protocol.startsWith('http'))
+        external.push(u.host)
+    }
+    page.on('request', onRequest)
+    await page.goto(`http://localhost:${APP}/#/workflows`, { waitUntil: 'networkidle0' })
+    await wait(400)
+    await page.evaluate(() => {
+      const use = [...document.querySelectorAll('button')].find(
+        (b) => b.textContent.trim() === 'Use' && b.closest('li')?.textContent.includes('music-yue2'),
+      )
+      use?.click()
+    })
+    await wait(400)
+    await page.type('textarea', 'a score mock')
+    await clickText(page, 'button', 'Send')
+    await page
+      .waitForFunction(
+        () =>
+          [...document.querySelectorAll('.view-result')].some((b) => b.textContent.trim() === 'Open score'),
+        { timeout: 15000 },
+      )
+      .catch(() => {})
+    check('score_button_named', (await viewLabels()).includes('Open score'), (await viewLabels()).join(' | '))
+    await clickText(page, '.view-result', 'Open score')
+    await page.waitForSelector('iframe.frame-view', { timeout: 20000 }).catch(() => {})
+    const probe = () =>
+      page.evaluate(() => {
+        const d = document.querySelector('iframe.frame-view')?.contentDocument
+        return {
+          sections: d?.querySelectorAll('#sections li').length ?? -1,
+          gate: !!d?.querySelector('#soundGate'),
+          embed: !!d?.body.classList.contains('embed'),
+          status: d?.querySelector('#status')?.textContent ?? '',
+        }
+      })
+    let st = await probe()
+    for (let i = 0; i < 40 && st.sections < 1; i++) {
+      await wait(500)
+      st = await probe()
+    }
+    check('score_player_lists_sections', st.sections === 3 && st.embed, JSON.stringify(st))
+    check('score_player_asks_before_sounds', st.gate, 'sound gate shown, nothing fetched yet')
+    check('score_player_loads_nothing_external', external.length === 0, external.join(','))
+    await page.screenshot({ path: `${SHOTS}/e2e-3h-score.png` })
+    page.off('request', onRequest)
+    await closePanel()
+  } else check('score_player_lists_sections', true, 'skipped: no demo score fixture')
 
   if (puppetFile) {
     await page.goto(`http://localhost:${APP}/#/workflows`, { waitUntil: 'networkidle0' })

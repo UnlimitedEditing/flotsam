@@ -1428,3 +1428,19 @@ details h3 {
 .filebtn input {
   display: none;
 }
+
+/* an embedded web tool (docs/viewers.md, frame mode): fills what is left of the result panel */
+.frame-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  min-height: 0;
+}
+.frame-view {
+  width: 100%;
+  height: calc(100dvh - 210px);
+  min-height: 320px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+  border-radius: 12px;
+  background: var(--bg, #0e1113);
+}

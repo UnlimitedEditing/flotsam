@@ -15,7 +15,7 @@ const text: Loader = () => import('./viewers/TextViewer')
 const LOADERS: Record<string, Loader> = {
   model: () => import('./viewers/ModelViewer'),
   text: text,
-  score: text,
+  score: () => import('./viewers/ScoreViewer'),
   track: text,
   puppet: () => import('./viewers/PuppetViewer'),
   direction: () => import('./viewers/DirectionViewer'),

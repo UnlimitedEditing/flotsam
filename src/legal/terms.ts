@@ -3,7 +3,7 @@
 // DRAFT: written by the build agent, NOT reviewed by a lawyer. It must go through legal review before any
 // public release (see docs/privacy-and-terms.md). Bump TERMS_VERSION whenever the meaning changes: everyone
 // is asked to accept again.
-export const TERMS_VERSION = '2026-10-21.1'
+export const TERMS_VERSION = '2026-10-22.1'
 
 export interface TermsSection {
   title: string
@@ -43,7 +43,7 @@ export const TERMS: TermsSection[] = [
   {
     title: 'Other services',
     body: [
-      'Flotsam talks to Graydient (to run renders), and, only if you set them up, to Catbox (to host a photo you want to use as an input) and ModelTrends (to show a public popularity score). Each has its own terms and privacy rules. Photos you upload go to the host you choose, not to Flotsam. Requests from the web version pass through a relay that forwards them and stores nothing.',
+      'Flotsam talks to Graydient (to run renders), and, only if you set them up, to Catbox (to host a photo you want to use as an input) and ModelTrends (to show a public popularity score). The song-score player downloads instrument sounds from the abcjs sound library (paulrosen.github.io) only when you tap Allow inside it. Each has its own terms and privacy rules. Photos you upload go to the host you choose, not to Flotsam. Requests from the web version pass through a relay that forwards them and stores nothing.',
     ],
   },
   {
